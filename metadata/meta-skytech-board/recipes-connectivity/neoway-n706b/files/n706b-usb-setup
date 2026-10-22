@@ -1,0 +1,65 @@
+#!/bin/sh
+
+set -eu
+
+is_n706b() {
+    device="$1"
+    vid=$(cat "${device}/idVendor" 2>/dev/null || true)
+    manufacturer=$(cat "${device}/manufacturer" 2>/dev/null || true)
+    product=$(cat "${device}/product" 2>/dev/null || true)
+    description=$(printf '%s %s' "${manufacturer}" "${product}" | tr '[:upper:]' '[:lower:]')
+
+    [ "${vid}" = "2949" ] || printf '%s' "${description}" | grep -Eq 'neoway|n706'
+}
+
+option_new_id() {
+    for path in \
+        /sys/bus/usb-serial/drivers/option1/new_id \
+        /sys/bus/usb/drivers/option/new_id; do
+        [ -w "${path}" ] || continue
+        printf '%s\n' "${path}"
+        return 0
+    done
+    return 1
+}
+
+modprobe option 2>/dev/null || true
+new_id=$(option_new_id || true)
+
+if [ -z "${new_id}" ]; then
+    echo "N706B: option driver new_id is not available" >&2
+    exit 0
+fi
+
+registered=0
+for device in /sys/bus/usb/devices/*; do
+    [ -r "${device}/idVendor" ] || continue
+    [ -r "${device}/idProduct" ] || continue
+    is_n706b "${device}" || continue
+
+    has_vendor_interface=0
+    for interface in "${device}":*; do
+        [ -r "${interface}/bInterfaceClass" ] || continue
+        [ "$(cat "${interface}/bInterfaceClass")" = "ff" ] || continue
+        has_vendor_interface=1
+        break
+    done
+    [ "${has_vendor_interface}" -eq 1 ] || continue
+
+    vid=$(cat "${device}/idVendor")
+    pid=$(cat "${device}/idProduct")
+    dynamic_id="${vid} ${pid} ff"
+
+    if grep -Eiq "^${vid}[[:space:]]+${pid}([[:space:]]|$)" "${new_id}" 2>/dev/null; then
+        continue
+    fi
+
+    if printf '%s\n' "${dynamic_id}" > "${new_id}" 2>/dev/null; then
+        echo "N706B: registered ${vid}:${pid} vendor interfaces with option"
+        registered=1
+    fi
+done
+
+if [ "${registered}" -eq 1 ]; then
+    udevadm trigger --subsystem-match=tty --action=change 2>/dev/null || true
+fi

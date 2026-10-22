@@ -1,0 +1,121 @@
+#!/bin/sh
+
+set -eu
+
+connection="n706b"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  n706b-connect status
+  n706b-connect setup
+  n706b-connect up <apn> [username] [password]
+  n706b-connect down
+
+Use the APN supplied by the SIM operator. Serial ports are exposed as
+/dev/n706b-ttyUSB* or /dev/n706b-ttyACM* after udev processes the modem.
+EOF
+}
+
+is_n706b() {
+    device="$1"
+    vid=$(cat "${device}/idVendor" 2>/dev/null || true)
+    manufacturer=$(cat "${device}/manufacturer" 2>/dev/null || true)
+    product=$(cat "${device}/product" 2>/dev/null || true)
+    description=$(printf '%s %s' "${manufacturer}" "${product}" | tr '[:upper:]' '[:lower:]')
+
+    [ "${vid}" = "2949" ] || printf '%s' "${description}" | grep -Eq 'neoway|n706'
+}
+
+modem_present() {
+    for device in /sys/bus/usb/devices/*; do
+        [ -r "${device}/idVendor" ] || continue
+        [ -r "${device}/idProduct" ] || continue
+        is_n706b "${device}" && return 0
+    done
+    return 1
+}
+
+status() {
+    found=0
+    for device in /sys/bus/usb/devices/*; do
+        [ -r "${device}/idVendor" ] || continue
+        [ -r "${device}/idProduct" ] || continue
+        is_n706b "${device}" || continue
+        printf 'N706B USB device: %s:%s (%s)\n' \
+            "$(cat "${device}/idVendor")" \
+            "$(cat "${device}/idProduct")" \
+            "$(cat "${device}/product" 2>/dev/null || echo unknown)"
+        found=1
+    done
+
+    if [ "${found}" -eq 0 ]; then
+        echo "N706B USB device: not enumerated"
+        if dmesg 2>/dev/null | tail -200 | grep -Eq 'device descriptor read|unable to enumerate USB device'; then
+            echo "USB error: descriptor/enumeration failed before the modem driver"
+        fi
+    fi
+
+    for port in /dev/n706b-*; do
+        [ -e "${port}" ] || continue
+        echo "Serial port: ${port} -> $(readlink -f "${port}")"
+    done
+
+    mmcli --list-modems || true
+    nmcli --fields DEVICE,TYPE,STATE,CONNECTION device status || true
+}
+
+up() {
+    apn="${1:-}"
+    username="${2:-}"
+    password="${3:-}"
+
+    if [ -z "${apn}" ]; then
+        echo "APN is required" >&2
+        usage >&2
+        exit 2
+    fi
+    if ! modem_present; then
+        echo "N706B is not enumerated on USB" >&2
+        exit 1
+    fi
+
+    if nmcli --terse --fields NAME connection show | grep -Fxq "${connection}"; then
+        nmcli connection modify "${connection}" gsm.apn "${apn}"
+    else
+        nmcli connection add type gsm ifname "*" con-name "${connection}" apn "${apn}"
+    fi
+
+    if [ -n "${username}" ]; then
+        nmcli connection modify "${connection}" gsm.username "${username}"
+    fi
+    if [ -n "${password}" ]; then
+        nmcli connection modify "${connection}" gsm.password "${password}"
+    fi
+
+    nmcli connection up "${connection}"
+}
+
+case "${1:-}" in
+    status)
+        status
+        ;;
+    setup)
+        n706b-usb-setup
+        ;;
+    up)
+        shift
+        up "$@"
+        ;;
+    down)
+        nmcli connection down "${connection}"
+        ;;
+    -h|--help|help|"")
+        usage
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac

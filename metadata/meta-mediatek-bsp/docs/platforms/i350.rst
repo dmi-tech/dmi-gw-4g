@@ -1,0 +1,5 @@
+i350 (MT8365)
+=============
+
+The `i350 platform <https://www.mediatek.com/products/AIoT/i350-mt8365>`_ is
+composed of the MT8365 SoC, the MT6357 PMIC, and the MT76xx wireless chipset.

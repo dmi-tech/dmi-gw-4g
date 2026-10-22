@@ -1,0 +1,22 @@
+From 24e738bdbf273ab0b2f89c934d9384785ad58064 Mon Sep 17 00:00:00 2001
+From: "kidd-kw.chen" <kidd-kw.chen@mediatek.com>
+Date: Wed, 3 May 2023 16:10:21 +0800
+Subject: [PATCH] Search for system opencl header
+
+Signed-off-by: Julien STEPHAN <jstephan@baylibre.com>
+---
+ cmake/GlobalConfig.cmake | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/cmake/GlobalConfig.cmake b/cmake/GlobalConfig.cmake
+index bb2e340c9..48f3edfad 100644
+--- a/cmake/GlobalConfig.cmake
++++ b/cmake/GlobalConfig.cmake
+@@ -362,6 +362,7 @@ if(ARMCOMPUTECL OR ARMCOMPUTEGPUFSA)
+               PATHS ${ARMCOMPUTE_ROOT}/include
+               NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+ 
++    find_path(OPENCL_INCLUDE CL/cl2.hpp)
+     # Link against libOpenCL in opencl-1.2-stubs, but don't search there at runtime
+     link_libraries(-L${ARMCOMPUTE_BUILD_DIR}/opencl-1.2-stubs)
+     set(OPENCL_LIBRARIES OpenCL)

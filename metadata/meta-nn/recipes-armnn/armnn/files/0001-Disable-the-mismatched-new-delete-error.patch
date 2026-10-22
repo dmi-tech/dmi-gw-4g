@@ -1,0 +1,31 @@
+From bc007c1c2bd3eb4885bcad5f5702451e095cece5 Mon Sep 17 00:00:00 2001
+From: JoyingKyc <joying.kuo@mediatek.com>
+Date: Fri, 8 Nov 2024 18:42:28 +0800
+Subject: [PATCH] Disable the mismatched-new-delete error
+
+The mismatched-new-delete warning was raised in gcc13,
+which cause the armnn build failed.
+
+Disable the warning till gcc fix it.
+
+Signed-off-by: JoyingKyc <joying.kuo@mediatek.com>
+---
+ cmake/GlobalConfig.cmake | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cmake/GlobalConfig.cmake b/cmake/GlobalConfig.cmake
+index 48f3edfad..7196fcfd8 100644
+--- a/cmake/GlobalConfig.cmake
++++ b/cmake/GlobalConfig.cmake
+@@ -102,7 +102,7 @@ endif()
+ # Compiler flags that are always set
+ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ if(COMPILER_IS_GNU_LIKE)
+-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Wextra -Werror -Wold-style-cast -Wno-missing-braces -Wconversion -Wsign-conversion")
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Wextra -Werror -Wno-error=mismatched-new-delete -Wold-style-cast -Wno-missing-braces -Wconversion -Wsign-conversion")
+     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-psabi")
+     endif()
+-- 
+2.45.2
+

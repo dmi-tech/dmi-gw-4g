@@ -1,0 +1,10 @@
+[Unit]
+Description=USB Mass Storage Gadget
+
+[Service]
+ExecStart=/lib/systemd/usbmass.sh --start
+RemainAfterExit=true
+ExecStop=/lib/systemd/usbmass.sh --stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Skytech <iot.dmitech@gmail.com>
+Date: Wed, 21 Oct 2026 14:30:00 +0700
+Subject: [PATCH] arm64: dts: mt8365-evk: drop HDMI dai-link from sound card
+
+The Skytech Genio 350 board has no IT66121 HDMI bridge responding on
+I2C (1-004c), so the IT66121 driver never binds and the hdmi-codec DAI
+is never registered. Because the sound card's I2S_OUT_BE link points
+at &it66121_hdmi, parse_dai_link_info() returns -EPROBE_DEFER forever
+and no ALSA card is created ("No soundcards found").
+
+Remove the HDMI dai-link so the card registers with the internal
+MT6357 codec (MTK_Codec link). I2S_OUT_BE falls back to the dummy
+codec, so PCM device numbering (and asound.conf) is unchanged.
+
+Upstream-Status: Inappropriate [board-specific]
+---
+ arch/arm64/boot/dts/mediatek/mt8365-evk.dts | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/mediatek/mt8365-evk.dts b/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
+--- a/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
++++ b/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
+@@ -158,15 +158,6 @@
+ 		pinctrl-4 = <&aud_mosi_off_pins>;
+ 		pinctrl-5 = <&aud_mosi_on_pins>;
+ 		mediatek,platform = <&afe>;
+-
+-		/* hdmi interface */
+-		dai-link-0 {
+-			link-name = "I2S_OUT_BE";
+-			sound-dai = <&afe>;
+-			codec {
+-				sound-dai = <&it66121_hdmi>;
+-			};
+-		};
+ 	};
+ 
+ 	vsys_lcm_reg: regulator-vsys-lcm {
+-- 
+2.43.0

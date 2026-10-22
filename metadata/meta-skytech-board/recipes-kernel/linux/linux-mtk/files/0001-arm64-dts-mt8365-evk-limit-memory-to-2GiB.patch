@@ -1,0 +1,27 @@
+From 3309fc30638f5399cc758a87f825a35e5e7e85c5 Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Fri, 19 Sep 2025 11:30:27 +0700
+Subject: [PATCH] arm64: dts: mt8365-evk: limit memory to 2GiB Upstream-Status:
+ Inappropriate [board-specific]
+
+Signed-off-by: Your Name <you@example.com>
+---
+ arch/arm64/boot/dts/mediatek/mt8365-evk.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/mediatek/mt8365-evk.dts b/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
+index 46fbe1228719..a9f42628b67b 100644
+--- a/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
++++ b/arch/arm64/boot/dts/mediatek/mt8365-evk.dts
+@@ -66,7 +66,7 @@ key-volume-up {
+ 
+ 	memory@40000000 {
+ 		device_type = "memory";
+-		reg = <0 0x40000000 0 0xc0000000>;
++		reg = <0 0x40000000 0 0x80000000>;
+ 	};
+ 
+ 	mmc2_vdd33: mmc2_vdd33-regulator {
+-- 
+2.34.1
+

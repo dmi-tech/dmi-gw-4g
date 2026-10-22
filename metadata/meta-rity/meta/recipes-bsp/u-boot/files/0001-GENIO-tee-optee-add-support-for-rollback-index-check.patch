@@ -1,0 +1,285 @@
+From b9a057c628f2ff16406392fd844732fff606ab87 Mon Sep 17 00:00:00 2001
+From: Howard Lin <howard-yh.lin@mediatek.com>
+Date: Wed, 7 Jun 2023 17:06:43 +0800
+Subject: [PATCH] GENIO: tee: optee: add support for rollback index checking
+
+This allows the bootloader to check rollback index when the
+'MEDIATEK_IOT_AB_BOOT_SUPPORT' is enabled. If the rollback
+index is invalid, it will not be able to boot.
+
+Change-Id: I9239cf4208b33b96f4deb464e85b4b7033cbd59c
+Signed-off-by: Howard Lin <howard-yh.lin@mediatek.com>
+---
+ boot/Kconfig                  |   7 ++
+ common/main.c                 |   8 +-
+ drivers/tee/optee/Makefile    |   3 +-
+ drivers/tee/optee/mtk_efuse.c | 173 ++++++++++++++++++++++++++++++++++
+ include/tee/optee_ta_efuse.h  |  27 ++++++
+ 5 files changed, 216 insertions(+), 2 deletions(-)
+ create mode 100644 drivers/tee/optee/mtk_efuse.c
+ create mode 100644 include/tee/optee_ta_efuse.h
+
+diff --git a/boot/Kconfig b/boot/Kconfig
+index 3580aea78e..0211bb2fdd 100644
+--- a/boot/Kconfig
++++ b/boot/Kconfig
+@@ -1393,4 +1393,11 @@ config MEDIATEK_IOT_AB_BOOT_SUPPORT
+ 	  to select which slot to boot from based on the information provided by
+ 	  boot_ctrl.
+ 
++config MEDIATEK_IOT_ROLLBACK_INDEX0
++	hex "MediaTek IoT Yocto Rollback Index"
++	depends on MEDIATEK_IOT_AB_BOOT_SUPPORT
++	default 0x0
++	help
++	  Add support for the bootloader to check the rollback index.
++
+ endmenu		# Booting
+diff --git a/common/main.c b/common/main.c
+index baa2ddb7b4..99dc7fd690 100644
+--- a/common/main.c
++++ b/common/main.c
+@@ -60,9 +60,15 @@ void main_loop(void)
+ 			efi_launch_capsules();
+ 	}
+ 
+-	if (IS_ENABLED(CONFIG_MEDIATEK_IOT_AB_BOOT_SUPPORT))
++	if (IS_ENABLED(CONFIG_MEDIATEK_IOT_AB_BOOT_SUPPORT)) {
+ 		iot_ab_boot_slot(0);
+ 
++		if (mtk_efuse_check_index() < 0) {
++			iot_ab_boot_select();
++			panic("Rollback.");
++		}
++	}
++
+ 	s = bootdelay_process();
+ 	if (cli_process_fdt(&s))
+ 		cli_secure_boot_cmd(s);
+diff --git a/drivers/tee/optee/Makefile b/drivers/tee/optee/Makefile
+index 2950d8f7c7..89a1bcda5a 100644
+--- a/drivers/tee/optee/Makefile
++++ b/drivers/tee/optee/Makefile
+@@ -4,4 +4,5 @@ obj-y += core.o
+ obj-y += supplicant.o
+ obj-$(CONFIG_DM_I2C) += i2c.o
+ obj-$(CONFIG_SUPPORT_EMMC_RPMB) += rpmb.o
+-obj-$(CONFIG_OPTEE_TA_OTP) += otp.o
+\ No newline at end of file
++obj-$(CONFIG_OPTEE_TA_OTP) += otp.o
++obj-$(CONFIG_MEDIATEK_IOT_AB_BOOT_SUPPORT) += mtk_efuse.o
+diff --git a/drivers/tee/optee/mtk_efuse.c b/drivers/tee/optee/mtk_efuse.c
+new file mode 100644
+index 0000000000..0f9628c3bf
+--- /dev/null
++++ b/drivers/tee/optee/mtk_efuse.c
+@@ -0,0 +1,173 @@
++// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++/*
++ * Copyright (C) 2023 MediaTek Inc.
++ * Author: Howard Lin <howard-yh.lin@mediatek.com>
++ */
++
++#include <env.h>
++#include <errno.h>
++#include <tee.h>
++#include <tee/optee_ta_efuse.h>
++
++static struct udevice *tee;
++static u32 session;
++
++static int optee_mtk_efuse_ta_open(void)
++{
++	const struct tee_optee_ta_uuid uuid = TA_EFUSE_UUID;
++	struct tee_open_session_arg arg;
++	int rc;
++
++	tee = tee_find_device(tee, NULL, NULL, NULL);
++	if (!tee)
++		return -ENODEV;
++
++	memset(&arg, 0, sizeof(arg));
++	tee_optee_ta_uuid_to_octets(arg.uuid, &uuid);
++	rc = tee_open_session(tee, &arg, 0, NULL);
++	if (!rc)
++		session = arg.session;
++	return 0;
++}
++
++static void optee_mtk_efuse_ta_close(void)
++{
++	if (tee)
++		tee_close_session(tee, session);
++	tee = NULL;
++}
++
++static int invoke_func(u32 func, ulong num, struct tee_param *param)
++{
++	struct tee_invoke_arg arg;
++
++	if (!tee) {
++		if (optee_mtk_efuse_ta_open())
++			return -ENODEV;
++	}
++
++	memset(&arg, 0, sizeof(arg));
++	arg.func = func;
++	arg.session = session;
++
++	if (tee_invoke_func(tee, &arg, num, param))
++		return -EFAULT;
++	switch (arg.ret) {
++		case TEE_SUCCESS:
++			return 0;
++		case TEE_ERROR_OUT_OF_MEMORY:
++		case TEE_ERROR_STORAGE_NO_SPACE:
++			return -ENOSPC;
++		case TEE_ERROR_ITEM_NOT_FOUND:
++			return -EIO;
++		case TEE_ERROR_TARGET_DEAD:
++			optee_mtk_efuse_ta_close();
++			return -EIO;
++		default:
++			return -EIO;
++	}
++}
++
++static int optee_mtk_efuse_value(u8 idx, u8 *out, size_t size, size_t *num)
++{
++	struct tee_shm *buf;
++	struct tee_param param[MAX_SIZE];
++	int rc = 0;
++
++	if (!tee) {
++		if (optee_mtk_efuse_ta_open())
++			return -ENODEV;
++	}
++
++	rc = tee_shm_alloc(tee, size, TEE_SHM_ALLOC, &buf);
++	if (rc) {
++		rc = -ENOMEM;
++		goto out;
++	}
++
++	memset(param, 0, sizeof(param));
++	param[0].attr = 1;
++	param[0].u.value.a = idx;
++	param[1].attr = 6;
++	param[1].u.memref.shm = buf;
++	param[1].u.memref.size = size;
++	param[2].attr = 1;
++	param[2].u.value.a = *num;
++
++	rc = invoke_func(TZCMD_EFUSE_READ, MAX_SIZE, param);
++	if (rc)
++		goto out;
++
++	if (param[1].u.memref.size > size) {
++		rc = -EINVAL;
++		goto out;
++	}
++
++	*num = param[1].u.memref.size;
++	memcpy(out, buf->addr, *num);
++
++	out:
++	if (buf)
++		tee_shm_free(buf);
++
++	optee_mtk_efuse_ta_close();
++	return rc;
++}
++
++static int mtk_efuse_plat_index(u8 *idx)
++{
++	int ret = 0;
++
++	if (CONFIG_IS_ENABLED(TARGET_MT8195))
++		*idx = 186;
++	else if (CONFIG_IS_ENABLED(TARGET_MT8188))
++		*idx = 237;
++	else if (CONFIG_IS_ENABLED(TARGET_MT8365))
++		*idx = 90;
++	else
++		ret = -EIO;
++	return ret;
++}
++
++int mtk_efuse_check_index(void)
++{
++	u8 data[DATA_LEN];
++	u8 idx = 0;
++	u32 buf = 0;
++	size_t len = DATA_LEN;
++	char env[32];
++	int ret, i;
++
++	ret = mtk_efuse_plat_index(&idx);
++	if (ret < 0)
++		return ret;
++
++	if (CONFIG_IS_ENABLED(TARGET_MT8365)) {
++		for (i = 0; i < 8; i++) {
++			len = 1;
++			ret = optee_mtk_efuse_value(idx, data, DATA_LEN, &len);
++			if (ret < 0)
++				return ret;
++
++			buf = buf | ((data[0] & 0xf) << (i * 4));
++			idx++;
++		}
++	} else {
++		ret = optee_mtk_efuse_value(idx, data, DATA_LEN, &len);
++		if (!ret) {
++			for (i = 0; i < DATA_LEN; i++)
++				buf = buf | (data[i] << (24 - (i * 8)));
++		}
++	}
++
++	if (!ret) {
++		if (CONFIG_MEDIATEK_IOT_ROLLBACK_INDEX0 < buf) {
++			pr_err("Invalid rollback index, found %.8x \n", CONFIG_MEDIATEK_IOT_ROLLBACK_INDEX0);
++			ret = -EIO;
++		}
++
++		if (sprintf(env,"0x%.8x", CONFIG_MEDIATEK_IOT_ROLLBACK_INDEX0) > 0)
++			env_set(ROLLBACK_INDEX0_ENV, env);
++	}
++	return ret;
++}
+diff --git a/include/tee/optee_ta_efuse.h b/include/tee/optee_ta_efuse.h
+new file mode 100644
+index 0000000000..6447037601
+--- /dev/null
++++ b/include/tee/optee_ta_efuse.h
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++/*
++ * Copyright (C) 2023 MediaTek Inc.
++ * Author: Howard Lin <howard-yh.lin@mediatek.com>
++ */
++
++#ifndef __MTK_EFUSE_H__
++#define __MTK_EFUSE_H__
++
++/* UUID of the trusted application */
++#define TA_EFUSE_UUID {0xa2567d51, 0x0144, 0x4543, \
++    { 0xb4, 0x0a, 0xca, 0xba, 0x40, 0x27, 0x97, 0x03} }
++
++#define DATA_LEN 4
++#define MAX_SIZE 3
++#define TZCMD_EFUSE_READ    0
++#define ROLLBACK_INDEX0_ENV    "rollback_index0"
++
++#ifdef CONFIG_MEDIATEK_IOT_AB_BOOT_SUPPORT
++int mtk_efuse_check_index(void);
++#else
++static inline int mtk_efuse_check_index(void)
++{
++    return -ENODEV;
++}
++#endif
++#endif /* __MTK_EFUSE_H__ */
+-- 
+2.18.0
+

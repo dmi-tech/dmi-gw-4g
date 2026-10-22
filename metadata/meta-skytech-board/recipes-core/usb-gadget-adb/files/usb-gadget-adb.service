@@ -1,0 +1,24 @@
+[Unit]
+Description=USB Gadget ADB Service for Genio 350
+Documentation=man:systemd.service(5)
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/usb-gadget-adb.sh start
+ExecStop=/usr/bin/usb-gadget-adb.sh stop
+ExecReload=/usr/bin/usb-gadget-adb.sh restart
+RemainAfterExit=yes
+TimeoutStartSec=30
+Environment=LANG=C
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target

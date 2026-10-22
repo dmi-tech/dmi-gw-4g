@@ -1,0 +1,16 @@
+header:
+  version: 11
+  includes:
+  - kas/include/deps.yml
+  - kas/include/base.yml
+
+# Split the provider of core away from the rest of the dependencies
+# so it is easier to switch to oe-core when necessary
+repos:
+  poky:
+    url: https://git.yoctoproject.org/git/poky
+    path: layers/poky
+    refspec: scarthgap
+    layers:
+      meta:
+      meta-poky:

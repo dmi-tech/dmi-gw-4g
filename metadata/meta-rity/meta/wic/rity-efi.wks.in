@@ -1,0 +1,23 @@
+# SHORT-description: Create an EFI boot image for MediaTek SoC based boards
+# long-description: Creates a partitioned image for MediaTek SoC based boards for supporting EFI boot.
+
+bootloader --ptable gpt --timeout=0 --configfile="${DEPLOY_DIR_IMAGE}/grub.cfg"
+# firmware ralated partitions
+part --source rawcopy --sourceparams="file=fip.bin" --part-name bootloaders --align 512 --fixed-size 4M
+part --source rawcopy --sourceparams="file=fip.bin" --part-name bootloaders_b --align 512 --fixed-size 4M
+part --source rawcopy --sourceparams="file=firmware.vfat" --part-name firmware --fixed-size 32M --part-type 384E979B-EB76-435A-A3A6-1A071DBAD91D
+part --source rawcopy --sourceparams="file=firmware.vfat" --part-name firmware_b --fixed-size 32M --part-type 384E979B-EB76-435A-A3A6-1A071DBAD91D
+part --source empty --part-name dramk --size 512K
+part --source empty --part-name misc --fixed-size 1M
+part --source rawcopy --sourceparams="file=bootassets.vfat" --part-name bootassets --fixed-size 32M
+
+# OS related partitions
+
+# For an EFI-enabled system, create an EFI system partition to comply with
+# EBBR. The boot loader grub-efi and the Linux kernel (Image.gz) will be
+# installed on this partition.
+part --source bootimg-efi --sourceparams="loader=grub-efi" --label="BOOT" --part-name="EFI_system_partition" --part-type C12A7328-F81F-11D2-BA4B-00A0C93EC93B --size 100M
+part --source rawcopy --sourceparams="file=fitImage" --part-name kernel --size 32M
+# Add new partition if module partition support is enabled
+${@['part --source rawcopy --sourceparams="file=modules-${MACHINE}.modimg.ext4" --part-name modules --size 350M', ''][bb.utils.contains('DISTRO_FEATURES', 'modimg', 0, 1, d)]}
+${@['part / --source rootfs --fstype=ext4 --label rootfs --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active', 'part / --source rawcopy --sourceparams="file=${IMGDEPLOYDIR}/${DM_VERITY_IMAGE}-${MACHINE}.${DM_VERITY_IMAGE_TYPE}.verity" --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active'][bb.utils.contains('DISTRO_FEATURES', 'security', 1, 0, d)]}

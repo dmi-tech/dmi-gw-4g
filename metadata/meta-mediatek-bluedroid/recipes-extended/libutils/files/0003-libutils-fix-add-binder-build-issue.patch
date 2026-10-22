@@ -1,0 +1,456 @@
+From 665705621c6fefe9834cd2f9d3f67ffc48b66421 Mon Sep 17 00:00:00 2001
+From: Shengbao Xu <shengbao.xu@mediatek.com>
+Date: Thu, 19 Aug 2021 09:57:31 +0800
+Subject: [PATCH] libutils: fix add binder build issue
+
+[Detail]
+modify for add binder build error
+
+Test:
+build pass
+
+Signed-off-by: Shengbao Xu <shengbao.xu@mediatek.com>
+CR-Id: AUTO00136679
+---
+ libutils/Makefile                     |  6 ++---
+ libutils/Printer.cpp                  |  1 +
+ libutils/RefBase.cpp                  | 32 ++++++++++++++-------------
+ libutils/SharedBuffer.cpp             |  4 ++--
+ libutils/String16.cpp                 |  5 +----
+ libutils/String8.cpp                  |  3 +--
+ libutils/StrongPointer.cpp            |  4 ++--
+ libutils/SystemClock.cpp              |  4 +---
+ libutils/Threads.cpp                  |  4 +++-
+ libutils/Unicode.cpp                  |  5 ++---
+ libutils/VectorImpl.cpp               | 16 +++++---------
+ libutils/include/utils/KeyedVector.h  |  3 ++-
+ libutils/include/utils/Log.h          | 20 ++---------------
+ libutils/include/utils/Printer.h      |  2 +-
+ libutils/include/utils/SortedVector.h |  3 ++-
+ libutils/include/utils/ThreadDefs.h   | 28 +++++++++++------------
+ libutils/include/utils/Vector.h       |  5 +++--
+ 17 files changed, 63 insertions(+), 82 deletions(-)
+
+diff --git a/libutils/Makefile b/libutils/Makefile
+index f8714d4097..b4dfc1902e 100644
+--- a/libutils/Makefile
++++ b/libutils/Makefile
+@@ -1,6 +1,6 @@
+ TARGET=libutils.so
+ SRC=Printer.cpp RefBase.cpp SharedBuffer.cpp Static.cpp String8.cpp String16.cpp \
+-    StrongPointer.cpp SystemClock.cpp Threads.cpp Timers.cpp Unicode.cpp VectorImpl.cpp
++    StrongPointer.cpp SystemClock.cpp Threads.cpp Timers.cpp Unicode.cpp VectorImpl.cpp misc.cpp
+ OBJS=${SRC:%.cpp=%.o}
+ 
+ .PHONY: all clean install
+@@ -8,10 +8,10 @@ OBJS=${SRC:%.cpp=%.o}
+ all : ${TARGET}
+ 
+ ${TARGET} :  $(OBJS)
+-	${CC} -shared -fpic -o ${TARGET} $^
++	${CXX} -shared -fpic -o ${TARGET} $^
+ 
+ %.o: %.cpp
+-	${CC} -fPIC -I./include -I../include -c $< -o $@
++	${CXX} -MD -fPIC -I./include -I../base/include -c $< -o $@
+ 
+ clean:
+ 	${RM} -r *.o
+diff --git a/libutils/Printer.cpp b/libutils/Printer.cpp
+index c1ab0834fa..712a24a26a 100644
+--- a/libutils/Printer.cpp
++++ b/libutils/Printer.cpp
+@@ -22,6 +22,7 @@
+ #include <utils/Log.h>
+ 
+ #include <stdlib.h>
++#include <cutils/log.h>
+ 
+ namespace android {
+ 
+diff --git a/libutils/RefBase.cpp b/libutils/RefBase.cpp
+index 0f5a56e201..7bdfdc199d 100644
+--- a/libutils/RefBase.cpp
++++ b/libutils/RefBase.cpp
+@@ -24,23 +24,13 @@
+ #include <sys/types.h>
+ #include <typeinfo>
+ #include <unistd.h>
++#include <memory>
+ 
+ #include <utils/RefBase.h>
+ 
+ //#include <utils/CallStack.h>
+-
+-#define ALOG(...) printf(LOG_TAG...)
+-
+-#ifndef ALOGD
+-#if LOG_NDEBUG
+-#define ALOGD(...)   ((void)0)
+-#else
+-#define ALOGD ALOG
+-#endif
+-#endif
+-
+-#define ALOGE ALOG
+-#define ALOG_ASSERT(cond, ...) ((void)0)//(!(cond)? (abort();) : ((void)0))
++#include <cutils/log.h>///M
++#include <utils/Mutex.h>
+ 
+ #ifndef __unused
+ #define __unused __attribute__((__unused__))
+@@ -65,6 +55,10 @@
+ 
+ // log all reference counting operations
+ #define PRINT_REFS                      0
++// Continue after logging a stack trace if ~RefBase discovers that reference
++// count has never been incremented. Normally we conspicuously crash in that
++// case.
++#define DEBUG_REFBASE_DESTRUCTION 1
+ 
+ // ---------------------------------------------------------------------------
+ 
+@@ -229,7 +223,7 @@ public:
+         }
+         if (dumpStack) {
+             ALOGE("above errors at:");
+-            CallStack stack(LOG_TAG);
++            ///MCallStack::logStack(LOG_TAG);
+         }
+     }
+ 
+@@ -370,7 +364,7 @@ private:
+                 ref = ref->next;
+             }
+ 
+-            CallStack stack(LOG_TAG);
++            ///MCallStack::logStack(LOG_TAG);
+         }
+     }
+ 
+@@ -727,6 +721,14 @@ RefBase::~RefBase()
+         // C++ objects are inconsistently managed and sometimes get here.
+         // There may be other cases, but we believe they should all be fixed.
+         delete mRefs;
++#if DEBUG_REFBASE_DESTRUCTION
++        // Treating this as fatal is prone to causing boot loops. For debugging, it's
++        // better to treat as non-fatal.
++        ALOGD("RefBase: Explicit destruction, weak count = %d (in %p)", mRefs->mWeak.load(), this);
++        ///MCallStack::logStack(LOG_TAG);
++#else
++        LOG_ALWAYS_FATAL("RefBase: Explicit destruction, weak count = %d", mRefs->mWeak.load());
++#endif
+     }
+     // For debugging purposes, clear mRefs.  Ineffective against outstanding wp's.
+     const_cast<weakref_impl*&>(mRefs) = NULL;
+diff --git a/libutils/SharedBuffer.cpp b/libutils/SharedBuffer.cpp
+index 8f3db1a5af..647d10f260 100644
+--- a/libutils/SharedBuffer.cpp
++++ b/libutils/SharedBuffer.cpp
+@@ -21,9 +21,9 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-//#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ 
+-#define LOG_ALWAYS_FATAL_IF 
+ // ---------------------------------------------------------------------------
+ 
+ namespace android {
+diff --git a/libutils/String16.cpp b/libutils/String16.cpp
+index 07432dfec1..d490367e16 100644
+--- a/libutils/String16.cpp
++++ b/libutils/String16.cpp
+@@ -16,15 +16,12 @@
+ 
+ #include <utils/String16.h>
+ 
+-//#include <utils/Log.h>
++#include <utils/Log.h>
+ 
+ #include <ctype.h>
+ 
+ #include "SharedBuffer.h"
+ 
+-#define ALOG_ASSERT(cond, ...) ((void)0)//(!(cond)? (abort();) : ((void)0))
+-#define LOG_ALWAYS_FATAL(...)
+-
+ namespace android {
+ 
+ static SharedBuffer* gEmptyStringBuf = NULL;
+diff --git a/libutils/String8.cpp b/libutils/String8.cpp
+index 160319faf6..ad0e72ec1a 100644
+--- a/libutils/String8.cpp
++++ b/libutils/String8.cpp
+@@ -20,14 +20,13 @@
+ #include <utils/String8.h>
+ 
+ #include <utils/Compat.h>
+-//#include <utils/Log.h>
++#include <utils/Log.h>
+ #include <utils/String16.h>
+ 
+ #include <ctype.h>
+ 
+ #include "SharedBuffer.h"
+ 
+-#define ALOG_ASSERT(cond, ...) ((void)0)//(!(cond)? (abort();) : ((void)0))
+ /*
+  * Functions outside android is below the namespace android, since they use
+  * functions and constants in android namespace.
+diff --git a/libutils/StrongPointer.cpp b/libutils/StrongPointer.cpp
+index ffaa9265c8..168981147f 100644
+--- a/libutils/StrongPointer.cpp
++++ b/libutils/StrongPointer.cpp
+@@ -16,9 +16,9 @@
+ 
+ #define LOG_TAG "sp"
+ 
+-//#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ 
+-#define LOG_ALWAYS_FATAL(...)
+ namespace android {
+ 
+ void sp_report_race() { LOG_ALWAYS_FATAL("sp<> assignment detected data race"); }
+diff --git a/libutils/SystemClock.cpp b/libutils/SystemClock.cpp
+index e7a68fa06a..73ec1be969 100644
+--- a/libutils/SystemClock.cpp
++++ b/libutils/SystemClock.cpp
+@@ -30,9 +30,7 @@
+ #include <cutils/compiler.h>
+ 
+ #include <utils/Timers.h>
+-//#include <utils/Log.h>
+-
+-#define ALOGE
++#include <utils/Log.h>
+ 
+ namespace android {
+ 
+diff --git a/libutils/Threads.cpp b/libutils/Threads.cpp
+index 7d7f0e283d..73242c6e49 100644
+--- a/libutils/Threads.cpp
++++ b/libutils/Threads.cpp
+@@ -36,7 +36,7 @@
+ 
+ #include <utils/Log.h>
+ 
+-#include <cutils/sched_policy.h>
++///M#include <processgroup/sched_policy.h>
+ 
+ #if defined(__ANDROID__)
+ # define __android_unused
+@@ -64,6 +64,7 @@ using namespace android;
+ 
+ typedef void* (*android_pthread_entry)(void*);
+ 
++#if defined(__ANDROID__)///M
+ struct thread_data_t {
+     thread_func_t   entryFunction;
+     void*           userData;
+@@ -92,6 +93,7 @@ struct thread_data_t {
+         return f(u);
+     }
+ };
++#endif///M
+ 
+ void androidSetThreadName(const char* name) {
+ #if defined(__linux__)
+diff --git a/libutils/Unicode.cpp b/libutils/Unicode.cpp
+index a11eea1f72..8f0008413e 100644
+--- a/libutils/Unicode.cpp
++++ b/libutils/Unicode.cpp
+@@ -19,7 +19,8 @@
+ #include <utils/Unicode.h>
+ #include <limits.h>
+ #include <stddef.h>
+-//#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ 
+ #if defined(_WIN32)
+ # undef  nhtol
+@@ -35,8 +36,6 @@
+ # include <netinet/in.h>
+ #endif
+ 
+-#define LOG_ALWAYS_FATAL_IF(...) 
+-#define LOG_ALWAYS_FATAL(...)
+ extern "C" {
+ 
+ static const char32_t kByteMask = 0x000000BF;
+diff --git a/libutils/VectorImpl.cpp b/libutils/VectorImpl.cpp
+index e19b9750c0..2829b9158f 100644
+--- a/libutils/VectorImpl.cpp
++++ b/libutils/VectorImpl.cpp
+@@ -21,15 +21,11 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <utils/Log.h>
++///M#include <log/log.h>
+ #include <utils/safe_iop.h>
++#include <cutils/log.h>///M
+ #include "SharedBuffer.h"
+ 
+-#undef   LOG_ALWAYS_FATAL_IF
+-#define  LOG_ALWAYS_FATAL_IF(cond, ...) \
+-                         ( (cond)? \
+-                            (void) 0: \
+-                            (void) 0 )
+ /*****************************************************************************/
+ 
+ 
+@@ -61,10 +57,10 @@ VectorImpl::VectorImpl(const VectorImpl& rhs)
+ 
+ VectorImpl::~VectorImpl()
+ {
+-    //ALOGW(
+-        //"[%p] subclasses of VectorImpl must call finish_vector()"
+-        //" in their destructor. Leaking %d bytes.",
+-        //this, (int)(mCount*mItemSize));
++    ALOGW_IF(mCount,
++        "[%p] subclasses of VectorImpl must call finish_vector()"
++        " in their destructor. Leaking %d bytes.",
++        this, (int)(mCount*mItemSize));
+     // We can't call _do_destroy() here because the vtable is already gone. 
+ }
+ 
+diff --git a/libutils/include/utils/KeyedVector.h b/libutils/include/utils/KeyedVector.h
+index 03bfe2701b..542e66b7ca 100644
+--- a/libutils/include/utils/KeyedVector.h
++++ b/libutils/include/utils/KeyedVector.h
+@@ -21,7 +21,8 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ #include <utils/Errors.h>
+ #include <utils/SortedVector.h>
+ #include <utils/TypeHelpers.h>
+diff --git a/libutils/include/utils/Log.h b/libutils/include/utils/Log.h
+index 73c92e1c21..4231637451 100644
+--- a/libutils/include/utils/Log.h
++++ b/libutils/include/utils/Log.h
+@@ -4,21 +4,5 @@
+ // This path remains strictly to include that header as there are thousands of
+ // references to <utils/Log.h> in the tree.
+ 
+-#ifndef LOG_H
+-#define LOG_H
+-#if 1  //smartdisplay
+-#include <stdio.h>
+-
+-#define ALOG_ASSERT(cond, ...) ((void)0)//(!(cond)? (abort();) : ((void)0))
+-#define LOG_ALWAYS_FATAL(...)
+-#define LOG_ALWAYS_FATAL_IF(...)
+-#define LOG_FATAL_IF(...)
+-#define ALOGE printf
+-#define ALOGD printf
+-#define ALOGW printf
+-#define ALOGV printf
+-#else
+-#include <log/log.h>
+-#endif
+-
+-#endif
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+diff --git a/libutils/include/utils/Printer.h b/libutils/include/utils/Printer.h
+index bb6628767c..0e8244fb7c 100644
+--- a/libutils/include/utils/Printer.h
++++ b/libutils/include/utils/Printer.h
+@@ -17,7 +17,7 @@
+ #ifndef ANDROID_PRINTER_H
+ #define ANDROID_PRINTER_H
+ 
+-#include <android/log.h>
++#include <cutils/log.h>
+ 
+ namespace android {
+ 
+diff --git a/libutils/include/utils/SortedVector.h b/libutils/include/utils/SortedVector.h
+index 47c1376ce0..281722e98b 100644
+--- a/libutils/include/utils/SortedVector.h
++++ b/libutils/include/utils/SortedVector.h
+@@ -21,7 +21,8 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+-#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ #include <utils/TypeHelpers.h>
+ #include <utils/Vector.h>
+ #include <utils/VectorImpl.h>
+diff --git a/libutils/include/utils/ThreadDefs.h b/libutils/include/utils/ThreadDefs.h
+index ae091e40fe..630f927035 100644
+--- a/libutils/include/utils/ThreadDefs.h
++++ b/libutils/include/utils/ThreadDefs.h
+@@ -19,8 +19,8 @@
+ 
+ #include <stdint.h>
+ #include <sys/types.h>
+-#include <system/graphics.h>
+-#include <system/thread_defs.h>
++///M#include <system/graphics.h>
++///M#include <system/thread_defs.h>
+ 
+ // ---------------------------------------------------------------------------
+ // C API
+@@ -51,18 +51,18 @@ typedef android_thread_id_t thread_id_t;
+ typedef android_thread_func_t thread_func_t;
+ 
+ enum {
+-    PRIORITY_LOWEST         = ANDROID_PRIORITY_LOWEST,
+-    PRIORITY_BACKGROUND     = ANDROID_PRIORITY_BACKGROUND,
+-    PRIORITY_NORMAL         = ANDROID_PRIORITY_NORMAL,
+-    PRIORITY_FOREGROUND     = ANDROID_PRIORITY_FOREGROUND,
+-    PRIORITY_DISPLAY        = ANDROID_PRIORITY_DISPLAY,
+-    PRIORITY_URGENT_DISPLAY = ANDROID_PRIORITY_URGENT_DISPLAY,
+-    PRIORITY_AUDIO          = ANDROID_PRIORITY_AUDIO,
+-    PRIORITY_URGENT_AUDIO   = ANDROID_PRIORITY_URGENT_AUDIO,
+-    PRIORITY_HIGHEST        = ANDROID_PRIORITY_HIGHEST,
+-    PRIORITY_DEFAULT        = ANDROID_PRIORITY_DEFAULT,
+-    PRIORITY_MORE_FAVORABLE = ANDROID_PRIORITY_MORE_FAVORABLE,
+-    PRIORITY_LESS_FAVORABLE = ANDROID_PRIORITY_LESS_FAVORABLE,
++    PRIORITY_LOWEST         = /*MANDROID_PRIORITY_LOWEST*/19,
++    PRIORITY_BACKGROUND     = /*MANDROID_PRIORITY_BACKGROUND*/10,
++    PRIORITY_NORMAL         = /*MANDROID_PRIORITY_NORMAL*/0,
++    PRIORITY_FOREGROUND     = /*MANDROID_PRIORITY_FOREGROUND*/-2,
++    PRIORITY_DISPLAY        = /*MANDROID_PRIORITY_DISPLAY*/-4,
++    PRIORITY_URGENT_DISPLAY = /*MANDROID_PRIORITY_URGENT_DISPLAY*/(-8),
++    PRIORITY_AUDIO          = /*MANDROID_PRIORITY_AUDIO*/-16,
++    PRIORITY_URGENT_AUDIO   = /*MANDROID_PRIORITY_URGENT_AUDIO*/-19,
++    PRIORITY_HIGHEST        = /*MANDROID_PRIORITY_HIGHEST*/-20,
++    PRIORITY_DEFAULT        = /*MANDROID_PRIORITY_DEFAULT*/0,
++    PRIORITY_MORE_FAVORABLE = /*MANDROID_PRIORITY_MORE_FAVORABLE*/-1,
++    PRIORITY_LESS_FAVORABLE = /*MANDROID_PRIORITY_LESS_FAVORABLE*/+1,
+ };
+ 
+ // ---------------------------------------------------------------------------
+diff --git a/libutils/include/utils/Vector.h b/libutils/include/utils/Vector.h
+index 9106166e80..42e7cc92a9 100644
+--- a/libutils/include/utils/Vector.h
++++ b/libutils/include/utils/Vector.h
+@@ -19,8 +19,9 @@
+ 
+ #include <stdint.h>
+ #include <sys/types.h>
+-#include <utils/Log.h>
+-//#include <log/log.h>
++
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ #include <utils/TypeHelpers.h>
+ #include <utils/VectorImpl.h>
+ 
+-- 
+2.18.0
+

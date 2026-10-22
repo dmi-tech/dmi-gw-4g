@@ -1,0 +1,22 @@
+# Neoway N706B variants may use different USB product IDs and compositions.
+# Identify the modem by Neoway's VID or its USB manufacturer/product strings.
+ACTION!="add|change|move|bind", GOTO="skytech_n706b_end"
+
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2949", RUN+="/usr/sbin/n706b-usb-setup"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{manufacturer}=="*Neoway*", RUN+="/usr/sbin/n706b-usb-setup"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{manufacturer}=="*NEOWAY*", RUN+="/usr/sbin/n706b-usb-setup"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{product}=="*N706*", RUN+="/usr/sbin/n706b-usb-setup"
+
+SUBSYSTEMS!="usb", GOTO="skytech_n706b_end"
+ATTRS{idVendor}=="2949", ENV{.SKYTECH_N706B}="1"
+ATTRS{manufacturer}=="*Neoway*", ENV{.SKYTECH_N706B}="1"
+ATTRS{manufacturer}=="*NEOWAY*", ENV{.SKYTECH_N706B}="1"
+ATTRS{manufacturer}=="*neoway*", ENV{.SKYTECH_N706B}="1"
+ATTRS{product}=="*N706*", ENV{.SKYTECH_N706B}="1"
+ATTRS{product}=="*n706*", ENV{.SKYTECH_N706B}="1"
+ENV{.SKYTECH_N706B}!="1", GOTO="skytech_n706b_end"
+
+ENV{ID_MM_DEVICE_PROCESS}="1"
+SUBSYSTEM=="tty", SYMLINK+="n706b-%k"
+
+LABEL="skytech_n706b_end"

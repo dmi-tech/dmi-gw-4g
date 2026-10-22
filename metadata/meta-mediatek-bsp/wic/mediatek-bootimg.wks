@@ -1,0 +1,7 @@
+# short-description: Create an image for MediaTek SoC based boards
+# long-description: Creates a partitioned image for MediaTek SoC based boards with extlinux
+
+bootloader --ptable gpt --timeout=0
+part --source rawcopy --sourceparams="file=fip.bin" --part-name bootloaders --align 512 --fixed-size 4M
+part /boot --source bootimg-partition --fstype=vfat --label BOOT --active --align 2048 --size 128 --sourceparams="loader=u-boot" --use-uuid
+part / --source rootfs --fstype=ext4 --label rootfs --part-name rootfs --align 4 --use-uuid --exclude-path boot/ --active

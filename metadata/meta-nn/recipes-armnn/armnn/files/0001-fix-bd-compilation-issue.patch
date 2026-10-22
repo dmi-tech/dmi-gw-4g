@@ -1,0 +1,30 @@
+From 1893ea31c39e91684bd7605d26e2a21d8fef5317 Mon Sep 17 00:00:00 2001
+From: "kidd-kw.chen" <kidd-kw.chen@mediatek.com>
+Date: Wed, 3 May 2023 16:08:57 +0800
+Subject: [PATCH] Fix bd compilation issue
+
+Signed-off-by: Julien STEPHAN <jstephan@baylibre.com>
+---
+ cmake/GlobalConfig.cmake | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/cmake/GlobalConfig.cmake b/cmake/GlobalConfig.cmake
+index b37417c7c..bb2e340c9 100644
+--- a/cmake/GlobalConfig.cmake
++++ b/cmake/GlobalConfig.cmake
+@@ -185,13 +185,13 @@ if(BUILD_BARE_METAL)
+     set(BUILD_SHARED_LIBS 0)
+ endif()
+ 
+-if (NOT BUILD_PIPE_ONLY)
++if (BUILD_PIPE_ONLY)
+   # cxxopts (Alternative to boost::program_options)
+   find_path(CXXOPTS_INCLUDE cxxopts/cxxopts.hpp PATHS third-party NO_CMAKE_FIND_ROOT_PATH)
+   include_directories(SYSTEM "${CXXOPTS_INCLUDE}")
+ endif()
+ 
+-if (NOT BUILD_PIPE_ONLY)
++if (BUILD_PIPE_ONLY)
+   # ghc (Alternative to boost::filesystem)
+   find_path(GHC_INCLUDE ghc/filesystem.hpp PATHS third-party NO_CMAKE_FIND_ROOT_PATH)
+   include_directories(SYSTEM "${GHC_INCLUDE}")

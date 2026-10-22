@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2020 BayLibre, SAS.
+ * Author: Florian Sylvestre <fsylvestre@baylibre.com>
+ */
+
+#include <dt-bindings/power/mt8167-power.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <uapi/linux/version.h>
+#include "mt8167-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+/ {
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			lcd_vdd_3v3: fixedregulator {
+				compatible = "regulator-fixed";
+				regulator-name = "lcd_vdd_3v3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				gpio = <&pio 67 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-always-on;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&pio>;
+		__overlay__ {
+			i2c1_pins_a: i2c1@0 {
+				pins1 {
+
+					pinmux = <MT8167_PIN_52_SDA1__FUNC_SDA1_0>,
+						 <MT8167_PIN_53_SCL1__FUNC_SCL1_0>;
+					bias-disable;
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&i2c1>;
+		__overlay__ {
+			clock-div = <2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins_a>;
+			status = "okay";
+
+			ov5645: ov5645@3c {
+				compatible = "ovti,ov5645";
+				reg = <0x3c>;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
+				power-domains = <&spm MT8167_POWER_DOMAIN_ISP>;
+#else
+				power-domains = <&scpsys MT8167_POWER_DOMAIN_ISP>;
+#endif
+
+				enable-gpios = <&tca6416 15 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&tca6416 14 GPIO_ACTIVE_LOW>;
+
+				orientation = <0>;
+				rotation = <0>;
+
+				vdddo-supply = <&mt6392_vcamio_reg>;
+				vdda-supply = <&mt6392_vcama_reg>;
+				vddd-supply = <&mt6392_vcamd_reg>;
+				vddaf-supply = <&mt6392_vcamaf_reg>;
+
+				mediatek,smilarb = <&larb1>;
+
+				status = "okay";
+
+				port {
+					ov5645_endpoint: endpoint {
+						remote-endpoint = <&seninf0_endpoint>;
+						clock-lanes = <0>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&seninf>;
+		__overlay__ {
+			status = "okay";
+			ports {
+				port@0 {
+					seninf0_endpoint: endpoint {
+						remote-endpoint = <&ov5645_endpoint>;
+                                                clock-lanes = <1>;
+                                                data-lanes = <1 2 3 4>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&mt6392_vgp2_reg>;
+		__overlay__ {
+			regulator-always-on;
+		};
+	};
+
+        fragment@5 {
+                target = <&cam>;
+                __overlay__ {
+                        status = "okay";
+                };
+        };
+};

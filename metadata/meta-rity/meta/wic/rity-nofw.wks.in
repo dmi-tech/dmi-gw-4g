@@ -1,0 +1,15 @@
+# SHORT-description: Create an image for MediaTek SoC based boards
+# long-description: Creates a partitioned image for MediaTek SoC based boards.
+
+bootloader --ptable gpt --timeout=0
+# OS related partitions
+
+# To be consistent with EBBR, we add an EFI system partition though it's
+# not used for booting IOT Yocto. Currently the EFI system partition contains
+# nothing but the folder structure for capsules used only for firmware
+# upgrading.
+part --source rawcopy --sourceparams="file=capsule.vfat" --part-name="EFI_system_partition" --part-type C12A7328-F81F-11D2-BA4B-00A0C93EC93B --size 100M
+part --source rawcopy --sourceparams="file=fitImage" --part-name kernel --size 32M
+# Add new partition if module partition support is enabled
+${@['part --source rawcopy --sourceparams="file=modules-${MACHINE}.modimg.ext4" --part-name modules --size 350M', ''][bb.utils.contains('DISTRO_FEATURES', 'modimg', 0, 1, d)]}
+${@['part / --source rootfs --fstype=ext4 --label rootfs --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active', 'part / --source rawcopy --sourceparams="file=${IMGDEPLOYDIR}/${DM_VERITY_IMAGE}-${MACHINE}.${DM_VERITY_IMAGE_TYPE}.verity" --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active'][bb.utils.contains('DISTRO_FEATURES', 'security', 1, 0, d)]}

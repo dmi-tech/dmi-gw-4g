@@ -1,0 +1,60 @@
+From bfd6b0445e5f376b70c9d027fab9fe6e557088d1 Mon Sep 17 00:00:00 2001
+From: Jiangtao Yi <jiangtao.yi@mediatek.com>
+Date: Thu, 6 May 2021 08:14:50 +0800
+Subject: [PATCH] libcutils:add-libcutils-Makefile
+
+Signed-off-by: Jiangtao Yi <jiangtao.yi@mediatek.com>
+---
+ libcutils/Makefile | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 libcutils/Makefile
+
+diff --git a/libcutils/Makefile b/libcutils/Makefile
+new file mode 100644
+index 0000000000..c79cdab8fb
+--- /dev/null
++++ b/libcutils/Makefile
+@@ -0,0 +1,40 @@
++TARGET=libcutils.so
++SRC=native_handle.cpp multiuser.cpp strlcpy.c ashmem-dev.cpp threads.cpp
++
++OBJS=native_handle.o multiuser.o strlcpy.o ashmem-dev.o threads.o
++
++
++.PHONY: all clean install
++
++all : ${TARGET}
++
++${TARGET} :  $(OBJS)
++	${CXX} -shared -fpic -o ${TARGET} $^
++	
++%.o: %.cpp
++	${CXX} -MD -fPIC -I./include -I../include -I../base/include -c $< -o $@
++
++%.o: %.c
++	${CC} -MD -fPIC -I./include -I../base/include -c $< -o $@
++
++clean:
++	${RM} -r *.o
++	
++install:
++	install -d ${DESTDIR}${LIBDIR}
++	install -d ${DESTDIR}${INCDIR}/
++	install -d ${DESTDIR}${INCDIR}/cutils/
++	install -m 644 ${SRCDIR}/libcutils/libcutils.so ${DESTDIR}${LIBDIR}
++	install -m 444 ${SRCDIR}/include/cutils/multiuser.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/native_handle.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/memory.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/ashmem.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/threads.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/log.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/android_filesystem_config.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/atomic.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/compiler.h ${DESTDIR}${INCDIR}/cutils
++	install -m 444 ${SRCDIR}/include/cutils/trace.h ${DESTDIR}${INCDIR}/cutils
++	install -d ${DESTDIR}${INCDIR}/private/
++	install -m 444 ${SRCDIR}/include/private/android_filesystem_config.h ${DESTDIR}${INCDIR}/private
++	install -m 444 ${SRCDIR}/include/private/fs_config.h ${DESTDIR}${INCDIR}/private
+-- 
+2.18.0
+

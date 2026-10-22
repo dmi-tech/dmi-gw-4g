@@ -1,0 +1,43 @@
+From 9cfed62fb1756b8016b46653373242bf51b1add0 Mon Sep 17 00:00:00 2001
+From: Macross Chen <macross.chen@mediatek.com>
+Date: Thu, 25 May 2023 11:39:57 +0800
+Subject: [PATCH] Do not show payload info if show_payload flag off
+
+If the ctrl type is V4L2_CTRL_TYPE_STRING,
+v4l2-ctl will set flags with V4L2_CTRL_FLAG_HAS_PAYLOAD.
+
+If the ctrl flags are with V4L2_CTRL_FLAG_WRITE_ONLY,
+v4l2-ctl will not create any payload buffer for query results.
+
+In the V4L2_CTRL_FLAG_WRITE_ONLY + V4L2_CTRL_TYPE_STRING case,
+print_value() be called with show_payload=false, but v4l2-ctl
+still try to access the payload(string) buffer.
+
+Just don't print value while show_payload == false.
+
+Signed-off-by: Macross Chen <macross.chen@mediatek.com>
+---
+ utils/v4l2-ctl/v4l2-ctl-common.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/utils/v4l2-ctl/v4l2-ctl-common.cpp b/utils/v4l2-ctl/v4l2-ctl-common.cpp
+index 0370708b..214798a8 100644
+--- a/utils/v4l2-ctl/v4l2-ctl-common.cpp
++++ b/utils/v4l2-ctl/v4l2-ctl-common.cpp
+@@ -520,6 +520,8 @@ static void print_value(int fd, const v4l2_query_ext_ctrl &qc, const v4l2_ext_co
+ 	}
+ 
+ 	if (qc.flags & V4L2_CTRL_FLAG_HAS_PAYLOAD) {
++		if (!show_payload)
++			return;
+ 		switch (qc.type) {
+ 		case V4L2_CTRL_TYPE_U8:
+ 			printf("%u", *ctrl.p_u8);
+@@ -1312,7 +1314,6 @@ void common_get(cv4l_fd &_fd)
+ 						print_value(fd, qc, ctrl, true, true);
+ 						continue;
+ 					}
+-
+ 					printf("%s: ", name.c_str());
+ 					print_value(fd, qc, ctrl, true, false);
+ 					printf("\n");

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "camera-ap1302-ar0330-dual-ar0430-dual.dtsi"
+
+/ {
+	fragment@7 {
+		target = <&i2c3>;
+		__overlay__ {
+			camera@3c {
+				sensors {
+					sensor@1 {
+						status = "disabled";
+					};
+				};
+			};
+		};
+	};
+};

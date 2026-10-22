@@ -1,0 +1,32 @@
+#!/bin/sh
+
+usage() {
+    echo "Usage: gpiofind <line-name>"
+    echo "Find a GPIO line by name and print: <gpiochip> <offset>"
+}
+
+case "${1-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    -v|--version)
+        exec gpioinfo --version
+        ;;
+esac
+
+if [ "$#" -ne 1 ]; then
+    usage >&2
+    exit 1
+fi
+
+requested_name="$1"
+line_info="$(gpioinfo --by-name --unquoted "$requested_name")" || exit $?
+set -- $line_info
+
+if [ "$#" -lt 2 ]; then
+    echo "gpiofind: cannot find GPIO line '$requested_name'" >&2
+    exit 1
+fi
+
+printf '%s %s\n' "$1" "$2"

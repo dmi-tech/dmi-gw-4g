@@ -1,0 +1,154 @@
+#include <dt-bindings/gpio/gpio.h>
+
+#include "mt8167-pinfunc.h"
+#include "dt-bindings/interrupt-controller/irq.h"
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&dsi>;
+		__overlay__ {
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports {
+				port@0 {
+					reg = <0>;
+
+					dsi_out: endpoint {
+						remote-endpoint = <&panel_in>;
+					};
+				};
+			};
+
+			panel@0 {
+				compatible = "avd,tt70ws-cn-134-a";
+				reg = <0>;
+				reset-gpios = <&tca6416_display 1 GPIO_ACTIVE_HIGH>;
+
+				port {
+					panel_in: endpoint {
+						remote-endpoint = <&dsi_out>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c1>;
+		__overlay__ {
+			clock-div = <2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins_a>;
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			tca6416_display: gpio@21 {
+				compatible = "ti,tca6416";
+				reg = <0x21>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pins_lcd_vdd_en>;
+				vcc-supply = <&lcd_vdd_3v3>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				lcd_stdbyb {
+					gpio-hog;
+					gpios = <0 0>;
+					output-high;
+				};
+				lcd_bl_enb {
+					gpios = <4 0>;
+					output-high;
+				};
+			};
+
+			touch: gt911@5d {
+				compatible = "goodix,gt911";
+				reg = <0x5d>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&ts_pins>;
+				interrupt-parent = <&pio>;
+				interrupts = <66 IRQ_TYPE_EDGE_FALLING>;
+				irq-gpios = <&pio 66 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&tca6416_display 5 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&mipi_tx>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&pio>;
+		__overlay__ {
+			i2c1_pins_a: i2c1@0 {
+				pins1 {
+					pinmux = <MT8167_PIN_52_SDA1__FUNC_SDA1_0>,
+						 <MT8167_PIN_53_SCL1__FUNC_SCL1_0>;
+					bias-disable;
+				};
+			};
+
+			ts_pins: ts_pins {
+				pins_ctp_int1 {
+					pinmux = <MT8167_PIN_66_LCM_RST__FUNC_GPIO66>;
+					input-enable;
+					bias-disable;
+				};
+
+			};
+
+			pins_lcd_vdd_en: pins_lcd_vdd_en {
+				pins1 {
+					pinmux = <MT8167_PIN_67_DSI_TE__FUNC_GPIO67>;
+				};
+			};
+
+		};
+	};
+
+	fragment@4 {
+		target-path = "/";
+		__overlay__ {
+			lcd_vdd_3v3: fixedregulator {
+				compatible = "regulator-fixed";
+				regulator-name = "lcd_vdd_3v3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				gpio = <&pio 67 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-always-on;
+			};
+
+			vsys: lcd_vsys {
+				compatible = "regulator-fixed";
+				regulator-name = "vsys";
+				regulator-min-microvolt = <4200000>;
+				regulator-max-microvolt = <4200000>;
+				regulator-always-on;
+			};
+
+			backlight: backlight_panel0 {
+				compatible = "pwm-backlight";
+				pwms = <&disp_pwm 0 1000000>;
+				power-supply = <&vsys>;
+				enable-gpios = <&pio 54 GPIO_ACTIVE_HIGH>;
+				brightness-levels = <0 4 8 16 32 64 128 255>;
+				default-brightness-level = <6>;
+				status = "okay";
+
+			};
+		};
+	};
+};

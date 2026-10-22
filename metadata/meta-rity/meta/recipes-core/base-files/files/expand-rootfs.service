@@ -1,0 +1,14 @@
+[Unit]
+Description=First Boot RootFS Expansion
+
+ConditionFirstBoot=yes
+
+Wants=first-boot-complete.target
+Before=first-boot-complete.target
+
+[Service]
+Type=oneshot
+ExecStart=expand-rootfs.sh
+
+[Install]
+WantedBy=sysinit.target

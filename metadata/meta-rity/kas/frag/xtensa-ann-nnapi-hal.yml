@@ -1,0 +1,6 @@
+header:
+  version: 11
+
+local_conf_header:
+  nnapi-hal-provider: |
+    PREFERRED_PROVIDER_virtual/libvendor-nn-hal = "xtensa-ann-bin"

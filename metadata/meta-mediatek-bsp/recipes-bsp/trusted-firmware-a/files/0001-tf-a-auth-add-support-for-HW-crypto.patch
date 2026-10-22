@@ -1,0 +1,57 @@
+From 60a1e12f3d31b1b0ca18a197a55805bc4306b6a5 Mon Sep 17 00:00:00 2001
+From: Howard Lin <howard-yh.lin@mediatek.com>
+Date: Thu, 2 Mar 2023 10:44:09 +0800
+Subject: [PATCH] tf-a: auth: add support for HW crypto
+
+Support the ARM HW crypto in MbedTLS crypto.
+
+Change-Id: Ida0abb54b95dcf1326d8091080a8056519df7b45
+Signed-off-by: Howard Lin <howard-yh.lin@mediatek.com>
+---
+ drivers/auth/mbedtls/mbedtls_crypto.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/drivers/auth/mbedtls/mbedtls_crypto.c b/drivers/auth/mbedtls/mbedtls_crypto.c
+index 6d6efb503..3ca713761 100644
+--- a/drivers/auth/mbedtls/mbedtls_crypto.c
++++ b/drivers/auth/mbedtls/mbedtls_crypto.c
+@@ -24,6 +24,24 @@
+ 
+ #define LIB_NAME		"mbed TLS"
+ 
++#if PLAT_HW_CRYPTO
++#define BLOCK_SIZE 64
++typedef unsigned char u8;
++typedef unsigned int u32;
++typedef unsigned long u64;
++
++struct sha256_context {
++    u32 state[8];
++    u64 count;
++    u8 buf[BLOCK_SIZE];
++};
++
++int sha256_start(struct sha256_context *s_ctx);
++int sha256_process(struct sha256_context *s_ctx, const u8 *input, unsigned int len);
++int sha256_end(struct sha256_context *s_ctx, u8 *out);
++int sha256_hash(const void *input, int len, u8 *output);
++#endif
++
+ /*
+  * AlgorithmIdentifier  ::=  SEQUENCE  {
+  *     algorithm               OBJECT IDENTIFIER,
+@@ -195,7 +213,11 @@ static int verify_hash(void *data_ptr, unsigned int data_len,
+ 
+ 	/* Calculate the hash of the data */
+ 	p = (unsigned char *)data_ptr;
++#if PLAT_HW_CRYPTO
++	rc = sha256_hash(p, data_len, data_hash);
++#else
+ 	rc = mbedtls_md(md_info, p, data_len, data_hash);
++#endif
+ 	if (rc != 0) {
+ 		return CRYPTO_ERR_HASH;
+ 	}
+-- 
+2.18.0
+

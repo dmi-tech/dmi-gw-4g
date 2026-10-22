@@ -1,0 +1,415 @@
+From 041ed46be31e220c81a4d816a19d4848361d04c2 Mon Sep 17 00:00:00 2001
+From: Jiangtao Yi <jiangtao.yi@mediatek.com>
+Date: Wed, 5 May 2021 00:44:52 +0800
+Subject: [PATCH] libcutils:fix-builderror
+
+Signed-off-by: Jiangtao Yi <jiangtao.yi@mediatek.com>
+---
+ libcutils/ashmem-dev.cpp           | 121 +++++++++++++++----------
+ libcutils/include/cutils/atomic.h  |   7 +-
+ libcutils/include/cutils/log.h     | 137 ++++++++++++++++++++++++++++-
+ libcutils/include/cutils/threads.h |   2 +-
+ libcutils/threads.cpp              |  58 ++++++------
+ 5 files changed, 246 insertions(+), 79 deletions(-)
+
+diff --git a/libcutils/ashmem-dev.cpp b/libcutils/ashmem-dev.cpp
+index e67b458085..c030253c12 100644
+--- a/libcutils/ashmem-dev.cpp
++++ b/libcutils/ashmem-dev.cpp
+@@ -28,9 +28,34 @@
+ #endif
+ #include <errno.h>
+ #include <fcntl.h>
+-#include <linux/ashmem.h>
++///M#include <linux/ashmem.h>
++#include <linux/ioctl.h>
++#include <linux/types.h>
++#define ASHMEM_NAME_LEN 256
++#define ASHMEM_NAME_DEF "dev/ashmem"
++#define ASHMEM_NOT_PURGED 0
++#define ASHMEM_WAS_PURGED 1
++#define ASHMEM_IS_UNPINNED 0
++#define ASHMEM_IS_PINNED 1
++struct ashmem_pin {
++  __u32 offset;
++  __u32 len;
++};
++#define __ASHMEMIOC 0x77
++#define ASHMEM_SET_NAME _IOW(__ASHMEMIOC, 1, char[ASHMEM_NAME_LEN])
++#define ASHMEM_GET_NAME _IOR(__ASHMEMIOC, 2, char[ASHMEM_NAME_LEN])
++#define ASHMEM_SET_SIZE _IOW(__ASHMEMIOC, 3, size_t)
++#define ASHMEM_GET_SIZE _IO(__ASHMEMIOC, 4)
++#define ASHMEM_SET_PROT_MASK _IOW(__ASHMEMIOC, 5, unsigned long)
++#define ASHMEM_GET_PROT_MASK _IO(__ASHMEMIOC, 6)
++#define ASHMEM_PIN _IOW(__ASHMEMIOC, 7, struct ashmem_pin)
++#define ASHMEM_UNPIN _IOW(__ASHMEMIOC, 8, struct ashmem_pin)
++#define ASHMEM_GET_PIN_STATUS _IO(__ASHMEMIOC, 9)
++#define ASHMEM_PURGE_ALL_CACHES _IO(__ASHMEMIOC, 10)
++///M#include <linux/ashmem.h>
+ #include <linux/memfd.h>
+-#include <log/log.h>
++///M#include <log/log.h>
++#include <cutils/log.h>///M
+ #include <pthread.h>
+ #include <stdio.h>
+ #include <string.h>
+@@ -42,9 +67,11 @@
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
+-#include <android-base/properties.h>
++///M#include <android-base/properties.h>
+ #include <android-base/unique_fd.h>
+ 
++///Mstrlcpy
++#include <cutils/memory.h>
+ #define ASHMEM_DEVICE "/dev/ashmem"
+ 
+ /* Will be added to UAPI once upstream change is merged */
+@@ -125,44 +152,44 @@ static bool pin_deprecation_warn = true; /* Log the pin deprecation warning only
+  * vendor partition processes and system partition processes.
+  */
+ static bool check_vendor_memfd_allowed() {
+-    std::string vndk_version = android::base::GetProperty("ro.vndk.version", "");
+-
+-    if (vndk_version == "") {
+-        ALOGE("memfd: ro.vndk.version not defined or invalid (%s), this is mandated since P.\n",
+-              vndk_version.c_str());
+-        return false;
+-    }
+-
+-    /* No issues if vendor is targetting current Dessert */
+-    if (vndk_version == "current") {
+-        return false;
+-    }
+-
+-    /* Check if VNDK version is a number and act on it */
+-    char* p;
+-    long int vers = strtol(vndk_version.c_str(), &p, 10);
+-    if (*p == 0) {
+-        if (vers < MIN_MEMFD_VENDOR_API_LEVEL) {
+-            ALOGI("memfd: device VNDK version (%s) is < Q so using ashmem.\n",
+-                  vndk_version.c_str());
+-            return false;
+-        }
+-
+-        return true;
+-    }
+-
+-    /* If its not a number, assume string, but check if its a sane string */
+-    if (tolower(vndk_version[0]) < 'a' || tolower(vndk_version[0]) > 'z') {
+-        ALOGE("memfd: ro.vndk.version not defined or invalid (%s), this is mandated since P.\n",
+-              vndk_version.c_str());
+-        return false;
+-    }
+-
+-    if (tolower(vndk_version[0]) < tolower(MIN_MEMFD_VENDOR_API_LEVEL_CHAR)) {
+-        ALOGI("memfd: device is using VNDK version (%s) which is less than Q. Use ashmem only.\n",
+-              vndk_version.c_str());
+-        return false;
+-    }
++///M    std::string vndk_version = android::base::GetProperty("ro.vndk.version", "");
++///M
++///M    if (vndk_version == "") {
++///M        ALOGE("memfd: ro.vndk.version not defined or invalid (%s), this is mandated since P.\n",
++///M              vndk_version.c_str());
++///M        return false;
++///M    }
++///M
++///M    /* No issues if vendor is targetting current Dessert */
++///M    if (vndk_version == "current") {
++///M        return false;
++///M    }
++///M
++///M    /* Check if VNDK version is a number and act on it */
++///M    char* p;
++///M    long int vers = strtol(vndk_version.c_str(), &p, 10);
++///M    if (*p == 0) {
++///M        if (vers < MIN_MEMFD_VENDOR_API_LEVEL) {
++///M            ALOGI("memfd: device VNDK version (%s) is < Q so using ashmem.\n",
++///M                  vndk_version.c_str());
++///M            return false;
++///M        }
++///M
++///M        return true;
++///M    }
++///M
++///M    /* If its not a number, assume string, but check if its a sane string */
++///M    if (tolower(vndk_version[0]) < 'a' || tolower(vndk_version[0]) > 'z') {
++///M        ALOGE("memfd: ro.vndk.version not defined or invalid (%s), this is mandated since P.\n",
++///M              vndk_version.c_str());
++///M        return false;
++///M    }
++///M
++///M    if (tolower(vndk_version[0]) < tolower(MIN_MEMFD_VENDOR_API_LEVEL_CHAR)) {
++///M        ALOGI("memfd: device is using VNDK version (%s) which is less than Q. Use ashmem only.\n",
++///M              vndk_version.c_str());
++///M        return false;
++///M    }
+ 
+     return true;
+ }
+@@ -180,12 +207,12 @@ static bool __has_memfd_support() {
+      * property will be removed once we switch everything over to ashmem.
+      * Currently it is used only for debugging to switch the system over.
+      */
+-    if (!android::base::GetBoolProperty("sys.use_memfd", false)) {
+-        if (debug_log) {
+-            ALOGD("sys.use_memfd=false so memfd disabled\n");
+-        }
+-        return false;
+-    }
++///M    if (!android::base::GetBoolProperty("sys.use_memfd", false)) {
++///M        if (debug_log) {
++///M            ALOGD("sys.use_memfd=false so memfd disabled\n");
++///M        }
++///M        return false;
++///M    }
+ 
+     /* Check if kernel support exists, otherwise fall back to ashmem */
+     android::base::unique_fd fd(
+diff --git a/libcutils/include/cutils/atomic.h b/libcutils/include/cutils/atomic.h
+index 0c88bfedd3..74fb074392 100644
+--- a/libcutils/include/cutils/atomic.h
++++ b/libcutils/include/cutils/atomic.h
+@@ -19,7 +19,12 @@
+ 
+ #include <stdint.h>
+ #include <sys/types.h>
+-#include <stdatomic.h>
++///M#include <stdatomic.h>
++using std::memory_order_release;///M
++using std::memory_order_acquire;///M
++using std::memory_order_seq_cst;///M
++using std::memory_order_relaxed;///M
++using std::atomic_int_least32_t;///M
+ 
+ #ifndef ANDROID_ATOMIC_INLINE
+ #define ANDROID_ATOMIC_INLINE static inline
+diff --git a/libcutils/include/cutils/log.h b/libcutils/include/cutils/log.h
+index 0e0248e50f..eed7956d50 100644
+--- a/libcutils/include/cutils/log.h
++++ b/libcutils/include/cutils/log.h
+@@ -1 +1,136 @@
+-#include <log/log.h>
++///M#include <log/log.h>
++#ifndef _CUTILS_LOG_H_
++#define _CUTILS_LOG_H_
++
++#include <stdio.h>
++#include <stdlib.h>
++
++#ifndef LOG_TAG
++#define LOG_TAG
++#endif
++
++///M
++#ifndef ALOGV
++#define ALOGV(x...) ((void)0)
++#endif
++
++#define IF_ALOGV() if (false)
++
++#ifndef IF_ALOG
++#define IF_ALOG(priority, tag) if (false)
++#endif
++
++#ifndef ALOGD
++#define ALOGD(x...) fprintf(stderr, LOG_TAG": " x)
++#endif
++
++#ifndef ALOGE
++#define ALOGE(x...) fprintf(stderr, LOG_TAG": " x)
++#endif
++
++#ifndef ALOGI
++#define ALOGI(x...) fprintf(stderr, LOG_TAG": " x)
++#endif
++
++#ifndef ALOGW
++#define ALOGW(x...) fprintf(stderr, LOG_TAG": " x)
++#endif
++
++#define android_errorWriteLog(tag, subTag) \
++	fprintf(stderr, "%s %s\n", #tag, #subTag)
++#define android_errorWriteWithInfoLog(tag, subTag, uid, data, dataLen) \
++	fprintf(stderr, "%s %s %s %s %s\n", #tag, #subTag, #uid, #data, #dataLen)
++
++#ifndef ALOGD_IF
++#define ALOGD_IF(cond, x...)  \
++	if((cond)) { \
++		fprintf(stderr, LOG_TAG": " x); \
++	}
++#endif
++
++#ifndef ALOGE_IF
++#define ALOGE_IF(cond, x...)  \
++	if((cond)) { \
++		fprintf(stderr, LOG_TAG": " x); \
++	}
++#endif
++
++
++#ifndef ALOGW_IF
++#define ALOGW_IF(cond, x...)  \
++	if((cond)) { \
++		fprintf(stderr, LOG_TAG": " x); \
++	}
++#endif
++
++#ifndef LOG_ALWAYS_FATAL_IF
++#define LOG_ALWAYS_FATAL_IF(cond, x...) \
++	if((cond)) { \
++	  	fprintf(stderr, LOG_TAG": " x); \
++		abort(); /* abort so we have a chance to debug the situation */ \
++}
++#endif
++
++#ifndef LOG_ALWAYS_FATAL
++#define LOG_ALWAYS_FATAL(x...) \
++  fprintf(stderr, LOG_TAG": " x); \
++  abort(); /* abort so we have a chance to debug the situation */
++#endif
++
++#if LOG_NDEBUG
++
++#ifndef LOG_FATAL_IF
++#define LOG_FATAL_IF(cond, ...) ((void)0)
++#endif
++#ifndef LOG_FATAL
++#define LOG_FATAL(...) ((void)0)
++#endif
++
++#else
++
++#ifndef LOG_FATAL_IF
++#define LOG_FATAL_IF(cond, ...) LOG_ALWAYS_FATAL_IF(cond, ##__VA_ARGS__)
++#endif
++#ifndef LOG_FATAL
++#define LOG_FATAL(...) LOG_ALWAYS_FATAL(__VA_ARGS__)
++#endif
++
++#endif
++
++#ifndef ALOG_ASSERT
++#define ALOG_ASSERT(cond, ...) LOG_FATAL_IF(!(cond), ##__VA_ARGS__)
++#endif
++
++#ifndef ALOG
++#define ALOG(priority, tag, x...) fprintf(stderr, #tag": " x)
++#endif
++
++/**
++ * Android log priority values, in increasing order of priority.
++ */
++typedef enum android_LogPriority {
++  /** For internal use only.  */
++  ANDROID_LOG_UNKNOWN = 0,
++  /** The default priority, for internal use only.  */
++  ANDROID_LOG_DEFAULT, /* only for SetMinPriority() */
++  /** Verbose logging. Should typically be disabled for a release apk. */
++  ANDROID_LOG_VERBOSE,
++  /** Debug logging. Should typically be disabled for a release apk. */
++  ANDROID_LOG_DEBUG,
++  /** Informational logging. Should typically be disabled for a release apk. */
++  ANDROID_LOG_INFO,
++  /** Warning logging. For use with recoverable failures. */
++  ANDROID_LOG_WARN,
++  /** Error logging. For use with unrecoverable failures. */
++  ANDROID_LOG_ERROR,
++  /** Fatal logging. For use when aborting. */
++  ANDROID_LOG_FATAL,
++  /** For internal use only.  */
++  ANDROID_LOG_SILENT, /* only for SetMinPriority(); must be last */
++} android_LogPriority;
++
++#define LOG_VERBOSE 2
++#define LOG_DEBUG 3
++#define LOG_WARN 5
++
++#endif
+diff --git a/libcutils/include/cutils/threads.h b/libcutils/include/cutils/threads.h
+index ba4846e33b..04eb359c8a 100644
+--- a/libcutils/include/cutils/threads.h
++++ b/libcutils/include/cutils/threads.h
+@@ -33,7 +33,7 @@ extern "C" {
+ // Deprecated: use android::base::GetThreadId instead, which doesn't truncate on Mac/Windows.
+ //
+ 
+-extern pid_t gettid();
++///Mextern pid_t gettid();
+ 
+ //
+ // Deprecated: use `_Thread_local` in C or `thread_local` in C++.
+diff --git a/libcutils/threads.cpp b/libcutils/threads.cpp
+index a7e6b2d8e2..955f599db2 100644
+--- a/libcutils/threads.cpp
++++ b/libcutils/threads.cpp
+@@ -16,35 +16,35 @@
+ 
+ #include <cutils/threads.h>
+ 
+-// For gettid.
+-#if defined(__APPLE__)
+-#include "AvailabilityMacros.h"  // For MAC_OS_X_VERSION_MAX_ALLOWED
+-#include <stdint.h>
+-#include <stdlib.h>
+-#include <sys/syscall.h>
+-#include <sys/time.h>
+-#include <unistd.h>
+-#elif defined(__linux__) && !defined(__ANDROID__)
+-#include <syscall.h>
+-#include <unistd.h>
+-#elif defined(_WIN32)
+-#include <windows.h>
+-#endif
+-
+-// No definition needed for Android because we'll just pick up bionic's copy.
+-#ifndef __ANDROID__
+-pid_t gettid() {
+-#if defined(__APPLE__)
+-  uint64_t tid;
+-  pthread_threadid_np(NULL, &tid);
+-  return tid;
+-#elif defined(__linux__)
+-  return syscall(__NR_gettid);
+-#elif defined(_WIN32)
+-  return GetCurrentThreadId();
+-#endif
+-}
+-#endif  // __ANDROID__
++///M// For gettid.
++///M#if defined(__APPLE__)
++///M#include "AvailabilityMacros.h"  // For MAC_OS_X_VERSION_MAX_ALLOWED
++///M#include <stdint.h>
++///M#include <stdlib.h>
++///M#include <sys/syscall.h>
++///M#include <sys/time.h>
++///M#include <unistd.h>
++///M#elif defined(__linux__) && !defined(__ANDROID__)
++///M#include <syscall.h>
++///M#include <unistd.h>
++///M#elif defined(_WIN32)
++///M#include <windows.h>
++///M#endif
++///M
++///M// No definition needed for Android because we'll just pick up bionic's copy.
++///M#ifndef __ANDROID__
++///Mpid_t gettid() {
++///M#if defined(__APPLE__)
++///M  uint64_t tid;
++///M  pthread_threadid_np(NULL, &tid);
++///M  return tid;
++///M#elif defined(__linux__)
++///M  return syscall(__NR_gettid);
++///M#elif defined(_WIN32)
++///M  return GetCurrentThreadId();
++///M#endif
++///M}
++///M#endif  // __ANDROID__
+ 
+ #if !defined(_WIN32)
+ 
+-- 
+2.18.0
+

@@ -1,0 +1,42 @@
+From e294a3f4c4c177896e5c8fbd79698a5b7e43dba0 Mon Sep 17 00:00:00 2001
+From: Robert Mader <robert.mader@collabora.com>
+Date: Thu, 31 Oct 2024 16:46:43 +0100
+Subject: [PATCH] backend-drm: Always mark linear modifier as supported by
+ plane
+
+If the plane supports the format in question. This makes plane-only
+composition work on MTK Genio boards with EGL drivers supporting
+explicit modifiers while the KMS driver does not.
+
+Note: forcing the EGL driver to use the invalid modifier by only
+sending that in linux-dmabuf makes the lima driver crash (works
+with Mesa).
+
+Add a env variable do easily disable the workaround for testing
+purposes:
+WESTON_DISABLE_MOD_LINEAR_WORKAROUND=1
+
+Upstream-Status: Pending
+---
+ libweston/backend-drm/fb.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/libweston/backend-drm/fb.c b/libweston/backend-drm/fb.c
+index ba0c177e..e23e4cc1 100644
+--- a/libweston/backend-drm/fb.c
++++ b/libweston/backend-drm/fb.c
+@@ -485,6 +485,11 @@ drm_fb_compatible_with_plane(struct drm_fb *fb, struct drm_plane *plane)
+ 		if (fb->modifier == DRM_FORMAT_MOD_INVALID)
+ 			return true;
+
++		if (!getenv("WESTON_DISABLE_MOD_LINEAR_WORKAROUND")) {
++			if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
++				return true;
++		}
++
+ 		if (weston_drm_format_has_modifier(fmt, fb->modifier))
+ 			return true;
+ 	}
+--
+2.45.2
+

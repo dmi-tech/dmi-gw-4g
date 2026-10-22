@@ -1,0 +1,72 @@
+#!/bin/sh
+# Copyright (C) 2023 MediaTek Inc.
+# Author: Ramax Lo <ramax.lo@mediatek.com>
+# Licensed on MIT
+
+modpart_enabled() {
+	return 0
+}
+
+find_modpart()
+{
+	local dev=`/sbin/blkid | grep "modules" | awk -F ':' '{print $1}'`
+
+	if [ -z "$dev" ]; then
+		echo ""
+	fi
+
+	echo $dev
+}
+
+modpart_run() {
+	if [ -z "$ROOTFS_DIR" ]; then
+		return
+	fi
+
+	MOD_DIR="$ROOTFS_DIR/lib/modules"
+	if [ ! -d "$MOD_DIR" ]; then
+		msg "modpart: No $ROOTFS_DIR/lib/modules folder found"
+		return
+	fi
+
+	if ! grep -q overlay /proc/filesystems; then
+		msg "modpart: overlayfs is not supported by this kernel"
+		return
+	fi
+
+	if mountpoint -q $MOD_DIR; then
+		return
+	fi
+
+	VAR_DIR="$ROOTFS_DIR/var/modules"
+	if [ ! -d "$VAR_DIR" ]; then
+		mkdir -p $VAR_DIR
+	fi
+
+	MOD_PART=`find_modpart`
+	if [ -z "$MOD_PART" ]; then
+		msg "modpart: No module partition found"
+		return
+	fi
+
+	if ! mount "$MOD_PART" "$VAR_DIR"; then
+		msg "modpart: Fail to mount $MOD_PART"
+		return
+	fi
+
+	UPPER_DIR="$VAR_DIR/upper"
+	WORK_DIR="$VAR_DIR/work"
+	if [ ! -d "$UPPER_DIR" ]; then
+		msg "modpart: No $UPPER_DIR found"
+		return
+	fi
+
+	if [ ! -d "$WORK_DIR" ]; then
+		mkdir -p $WORK_DIR
+	fi
+
+	if ! mount -t overlay overlay -olowerdir=$MOD_DIR,upperdir=$UPPER_DIR,workdir=$WORK_DIR $MOD_DIR; then
+		msg "modpart: Fail to mount overlayfs to $MOD_DIR"
+		return
+	fi
+}

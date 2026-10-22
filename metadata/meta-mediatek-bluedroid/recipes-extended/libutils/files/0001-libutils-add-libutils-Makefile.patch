@@ -1,0 +1,44 @@
+From 57bd7f44775766f8194af092e0bb7f62ba4f45b4 Mon Sep 17 00:00:00 2001
+From: Ginny Chen <ginny.chen@mediatek.com>
+Date: Wed, 24 Apr 2019 11:46:28 +0800
+Subject: [PATCH 1/2] libutils:add-libutils-Makefile
+
+Signed-off-by: Ginny Chen <ginny.chen@mediatek.com>
+---
+ libutils/Makefile | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+ create mode 100644 libutils/Makefile
+
+diff --git a/libutils/Makefile b/libutils/Makefile
+new file mode 100644
+index 0000000000..f8714d4097
+--- /dev/null
++++ b/libutils/Makefile
+@@ -0,0 +1,24 @@
++TARGET=libutils.so
++SRC=Printer.cpp RefBase.cpp SharedBuffer.cpp Static.cpp String8.cpp String16.cpp \
++    StrongPointer.cpp SystemClock.cpp Threads.cpp Timers.cpp Unicode.cpp VectorImpl.cpp
++OBJS=${SRC:%.cpp=%.o}
++
++.PHONY: all clean install
++
++all : ${TARGET}
++
++${TARGET} :  $(OBJS)
++	${CC} -shared -fpic -o ${TARGET} $^
++
++%.o: %.cpp
++	${CC} -fPIC -I./include -I../include -c $< -o $@
++
++clean:
++	${RM} -r *.o
++
++install:
++	install -d ${DESTDIR}${LIBDIR}
++	install -d ${DESTDIR}${INCDIR}/
++	install -d ${DESTDIR}${INCDIR}/utils/
++	install -m 644 ${SRCDIR}/libutils/libutils.so ${DESTDIR}${LIBDIR}
++	install -m 444 ${SRCDIR}/include/utils/*.h ${DESTDIR}${INCDIR}/utils
+-- 
+2.18.0
+

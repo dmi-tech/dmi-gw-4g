@@ -1,0 +1,51 @@
+/dts-v1/;
+/ {
+	description = "Image-Tree script for RITY";
+	#address-cells = <1>;
+
+	images {
+		kernel-1 {
+			description = "Linux kernel";
+			data = /incbin/("arch/arm64/boot/Image.gz");
+			type = "kernel";
+			arch = "arm64";
+			os = "linux";
+			compression = "gzip";
+			load = <0x40200000>;
+			entry = <0x40200000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		{% for dtb in devicetrees %}
+		fdt-{{ dtb|slashescape }} {
+			description = "Flattened Device Tree blob";
+			data = /incbin/("arch/arm64/boot/dts/{{ dtb }}");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			load = <0x44000000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+		{% endfor %}
+	};
+
+	configurations {
+		default = "conf-{{ default_dtb|slashescape }}";
+
+		{% for dtb in devicetrees %}
+		conf-{{ dtb|slashescape }} {
+			description = "1 Linux kernel, FDT blob";
+			kernel = "kernel-1";
+			fdt = "fdt-{{ dtb|slashescape }}";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+		{% endfor %}
+	};
+};
+

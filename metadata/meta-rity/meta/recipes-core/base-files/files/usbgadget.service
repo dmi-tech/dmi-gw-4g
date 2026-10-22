@@ -1,0 +1,11 @@
+[Unit]
+Description=USB gadget (ADB+RNDIS) interface
+After=NetworkManager.service
+
+[Service]
+ExecStart=/lib/systemd/usbgadget.sh --start
+RemainAfterExit=true
+ExecStop=/lib/systemd/usbgadget.sh --stop
+
+[Install]
+WantedBy=multi-user.target

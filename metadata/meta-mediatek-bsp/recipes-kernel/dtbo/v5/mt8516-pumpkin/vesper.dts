@@ -1,0 +1,249 @@
+#include "mt8516-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			pcm1865_3v3: fixedregulator {
+				compatible = "regulator-fixed";
+				regulator-name = "pcm1865_3v3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			sound: sound {
+				compatible = "mediatek,mt8516-soc-vesper";
+				pinctrl-names = "default";
+				pinctrl-0 = <&aud_pins_vesper>;
+				tdmadc-1p8v-supply = <&mt6392_vcn18_reg>;
+				tdmadc-3p3v-supply = <&mt6392_vmch_reg>;
+				mediatek,tdmin-adc = <&pcm1865_u12>, <&pcm1865_u13>;
+
+				dai-link-0 {
+					sound-dai = <&afe>;
+					dai-link-name = "TDM Capture";
+					dai-format = "tdm";
+
+					codec-0 {
+						sound-dai = <&pcm1865_u12>;
+						tdm-mask = <0x0f>;
+					};
+
+					codec-1 {
+						sound-dai = <&pcm1865_u13>;
+						tdm-mask = <0xc0>;
+					};
+
+					codec-2 {
+						sound-dai = <&tvl320adc3101_u18>;
+						tdm-mask = <0x30>;
+					};
+				};
+
+				dai-link-1 {
+					sound-dai = <&afe>;
+					dai-link-name = "TDM Capture 6.1";
+					dai-format = "tdm";
+
+					codec-0 {
+						sound-dai = <&pcm1865_u12>;
+						tdm-mask = <0x0f>;
+					};
+
+					codec-1 {
+						sound-dai = <&pcm1865_u13>;
+						tdm-mask = <0xf0>;
+					};
+				};
+
+				dai-link-2 {
+					sound-dai = <&afe>;
+					dai-link-name = "I2S BE";
+
+					codec-0 {
+						sound-dai = <&pcm5242_u14>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&afe>;
+		__overlay__ {
+			/* 0(HDMI) 1(I2S) 2(TDM) */
+			mediatek,tdm-out-mode = <0>;
+			mediatek,tdm-in-lrck-cycle = <1>;
+		};
+	};
+
+	fragment@2 {
+		target = <&i2c2>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pcm1865_u12: audio-codec@4a {
+				compatible = "ti,pcm1865";
+				sound-name-prefix = "U12_";
+				reg = <0x4a>;
+				#sound-dai-cells = <0>;
+				adc1-left-input-select = <0x10>;
+				adc1-right-input-select = <0x10>;
+				adc2-left-input-select = <0x20>;
+				adc2-right-input-select = <0x20>;
+				apga-gain-control = <0xff>;
+
+				avdd-supply  = <&pcm1865_3v3>;
+				dvdd-supply  = <&pcm1865_3v3>;
+				iovdd-supply = <&pcm1865_3v3>;
+			};
+
+			pcm1865_u13: audio-codec@4b {
+				compatible = "ti,pcm1865";
+				sound-name-prefix = "U13_";
+				reg = <0x4b>;
+				#sound-dai-cells = <0>;
+				adc1-left-input-select = <0x10>;
+				adc1-right-input-select = <0x10>;
+				adc2-left-input-select = <0x20>;
+				adc2-right-input-select = <0x20>;
+				apga-gain-control = <0xff>;
+
+				avdd-supply  = <&pcm1865_3v3>;
+				dvdd-supply  = <&pcm1865_3v3>;
+				iovdd-supply = <&pcm1865_3v3>;
+			};
+
+			tvl320adc3101_u18: audio-codec@18 {
+				compatible = "ti,tlv320adc3101";
+				sound-name-prefix = "U18_";
+				reg = <0x18>;
+				#sound-dai-cells = <0>;
+				rst-gpio = <&pio 34 0>;
+				left-pin-select = <1>;
+				right-pin-select = <1>;
+
+				av-supply  = <&pcm1865_3v3>;
+				dv-supply  = <&pcm1865_3v3>;
+				iov-supply = <&pcm1865_3v3>;
+			};
+
+			pcm5242_u14: audio-codec@4c {
+				compatible = "ti,pcm5142";
+				sound-name-prefix = "VPB_";
+				reg = <0x4c>;
+				#sound-dai-cells = <0>;
+				AVDD-supply = <&pcm1865_3v3>;
+				DVDD-supply = <&pcm1865_3v3>;
+				CPVDD-supply = <&pcm1865_3v3>;
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&spi>;
+		__overlay__ {
+			status = "okay";
+
+			led-controller@0 {
+				compatible = "shiji,apa102";
+				reg = <0>;
+				spi-max-frequency = <1000000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&led_pins>;
+
+				led@0 {
+					reg = <0>;
+					label = "led1";
+				};
+
+				led@1 {
+					reg = <1>;
+					label = "led2";
+				};
+
+				led@2 {
+					reg = <2>;
+					label = "led3";
+				};
+
+				led@3 {
+					reg = <3>;
+					label = "led4";
+				};
+
+				led@4 {
+					reg = <4>;
+					label = "led5";
+				};
+
+				led@5 {
+					reg = <5>;
+					label = "led6";
+				};
+
+				led@6 {
+					reg = <6>;
+					label = "led7";
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&pio>;
+		__overlay__ {
+			aud_pins_vesper: audiovesper {
+				pins_cmd_dat {
+					pinmux = <MT8516_PIN_25_EINT25__FUNC_I2S_8CH_MCK>,	/* 40 pin I2S_MCLK	*/
+						 <MT8516_PIN_55_I2S_DATA_IN__FUNC_I2S_8CH_DO1>,	/* 40 pin I2S_DOUT	*/
+						 <MT8516_PIN_56_I2S_LRCK__FUNC_I2S_8CH_LRCK>,	/* 40 pin I2S_FS	*/
+						 <MT8516_PIN_57_I2S_BCK__FUNC_I2S_8CH_BCK>,     /* 40 pin I2S_BCK	*/
+						 <MT8516_PIN_19_EINT19__FUNC_I2S2_DI>,		/* 40 pin I2S_DIN	*/
+						 <MT8516_PIN_100_CMDAT0__FUNC_TDM_RX_MCK>,	/* 40 pin TDM_IN_MCLK	*/
+						 <MT8516_PIN_101_CMDAT1__FUNC_TDM_RX_BCK>,	/* 40 pin TDM_IN_BCLK	*/
+						 <MT8516_PIN_102_CMMCLK__FUNC_TDM_RX_LRCK>,	/* 40 pin TDM_IN_FS	*/
+						 <MT8516_PIN_103_CMPCLK__FUNC_TDM_RX_DI>,	/* 40 pin TDM_IN_DATA	*/
+						 <MT8516_PIN_36_MRG_CLK__FUNC_I2S0_BCK>,	/* BT_PCM_CLK	*/
+						 <MT8516_PIN_37_MRG_SYNC__FUNC_I2S0_LRCK>,	/* BT_PCM_SYNC	*/
+						 <MT8516_PIN_48_SPI_CS__FUNC_I2S0_DI>,		/* BT_PCM_DI	*/
+						 <MT8516_PIN_20_EINT20__FUNC_I2S3_DO>;		/* BT_PCM_DO	*/
+					 drive-strength = <MTK_DRIVE_4mA>;
+				};
+
+				vesper_u1_en {
+					pinmux = <MT8516_PIN_50_SPI_MI__FUNC_GPIO50>;	/* Pin to enable Vesper 1V8 reg */
+					drive-strength = <MTK_DRIVE_4mA>;
+					output-high;
+				};
+				pins_adc3_reset {
+					pinmux = <MT8516_PIN_34_URXD2__FUNC_GPIO34>;
+					output-low;
+				};
+			};
+
+			led_pins: led-pins {
+				pins {
+					pinmux = <MT8516_PIN_23_EINT23__FUNC_GPIO23>;
+					output-high;
+				};
+			};
+		};
+	};
+
+	/* UART2 can't be used at the same time as vesper
+	 * as they share the same pin (GPIO034) */
+	fragment@5 {
+		target = <&uart2>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};

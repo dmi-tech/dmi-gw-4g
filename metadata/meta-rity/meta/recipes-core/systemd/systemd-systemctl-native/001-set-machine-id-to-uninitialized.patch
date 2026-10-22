@@ -1,0 +1,21 @@
+Upstream-Status: Inappropriate [iot yocto specific]
+
+--- /proj/mtk03251/mfs.dq/iot-yocto-kirkstone/src/poky/meta/recipes-core/systemd/systemd-systemctl/systemctl	2024-11-22 12:10:33.469248516 +0800
++++ ./systemctl	2024-11-22 15:27:53.336328117 +0800
+@@ -300,11 +300,15 @@
+     # If we populate the systemd links we also create /etc/machine-id, which
+     # allows systemd to boot with the filesystem read-only before generating
+     # a real value and then committing it back.
++    # 
++    # Set the content of /etc/machine-id file to 'uninitialized\n' to so
++    # 'ConditionFirstBoot' work properly as documented in
++    # https://www.freedesktop.org/software/systemd/man/latest/machine-id.html#First%20Boot%20Semantics
+     #
+     # For the stateless configuration, where /etc is generated at runtime
+     # (for example on a tmpfs), this script shouldn't run at all and we
+     # allow systemd to completely populate /etc.
+-    (root / SYSCONFDIR / "machine-id").touch()
++    (root / SYSCONFDIR / "machine-id").write_text('uninitialized\n')
+ 
+ 
+ def main():

@@ -1,0 +1,75 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/mediatek,mt8365-clk.h>
+
+/ {
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			panel@0 {
+				compatible = "auo,g156xtn010_lvds";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&lvds_panel_default_pins>;
+				power-supply = <&vsys_lcm_reg>;
+				bl-gpios = <&pio 67 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+
+				port {
+					lvds_panel_in: endpoint {
+						remote-endpoint = <&lvds_out>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&dpi0>;
+		__overlay__ {
+			mediatek,output-to-lvds;
+			status = "okay";
+			clocks = <&mmsys CLK_MM_DPI0_DPI0>,
+				 <&mmsys CLK_MM_MM_DPI0>,
+				 <&apmixedsys CLK_APMIXED_LVDSPLL>,
+				 <&topckgen CLK_TOP_DPI0_SEL>,
+				 <&topckgen CLK_TOP_VPLL_DPIX_EN>;
+			clock-names = "pixel", "engine", "pll", "dpi_sel", "dpix";
+			port {
+				dpi_out: endpoint {
+					remote-endpoint = <&lvds_in>;
+				};
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&lvds_tx>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&lvds>;
+		__overlay__ {
+			status = "okay";
+			ports {
+				port@0 {
+					reg = <0>;
+					lvds_in: endpoint {
+						remote-endpoint = <&dpi_out>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					lvds_out: endpoint {
+						remote-endpoint = <&lvds_panel_in>;
+					};
+				};
+			};
+		};
+	};
+};

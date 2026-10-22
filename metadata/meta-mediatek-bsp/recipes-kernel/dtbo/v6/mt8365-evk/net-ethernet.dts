@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&ethernet>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&mt6357_vibr_reg>;
+		__overlay__ {
+			regulator-always-on;
+		};
+	};
+
+	fragment@2 {
+		target = <&mt6357_vsim2_reg>;
+		__overlay__ {
+			regulator-always-on;
+		};
+	};
+};

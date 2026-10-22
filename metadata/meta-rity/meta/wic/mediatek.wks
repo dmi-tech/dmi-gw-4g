@@ -1,0 +1,7 @@
+# SHORT-description: Create an image for MediaTek SoC based boards
+# long-description: Creates a partitioned image for MediaTek SoC based boards.
+
+bootloader --ptable gpt --timeout=0
+part --source rawcopy --sourceparams="file=fip.bin" --part-name bootloaders --align 512 --fixed-size 4M
+part --source rawcopy --sourceparams="file=fitImage" --part-name kernel --size 15M
+part / --source rootfs --fstype=ext4 --label rootfs --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active

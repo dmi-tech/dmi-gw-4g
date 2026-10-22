@@ -1,0 +1,26 @@
+From 7181edef2f83151bec87befd0f7dfba6a5d22574 Mon Sep 17 00:00:00 2001
+From: you <you@example.com>
+Date: Mon, 15 Sep 2025 17:03:20 +0700
+Subject: [PATCH] board: genio-350-evk: limit memory to 2GiB
+
+Signed-off-by: you <you@example.com>
+---
+ arch/arm/dts/genio-350-evk.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/dts/genio-350-evk.dts b/arch/arm/dts/genio-350-evk.dts
+index 1d7a763b68..5894d23bae 100644
+--- a/arch/arm/dts/genio-350-evk.dts
++++ b/arch/arm/dts/genio-350-evk.dts
+@@ -36,7 +36,7 @@
+ 
+ 	memory@40000000 {
+ 		device_type = "memory";
+-		reg = <0 0x40000000 0 0xC0000000>;
++		reg = <0 0x40000000 0 0x80000000>;
+ 	};
+ 
+ 	firmware: firmware {
+-- 
+2.34.1
+

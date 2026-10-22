@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/clock/mt8365-clk.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/mt8365-pinfunc.h>
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&pio>;
+		__overlay__ {
+			cam0_pins_default: cam0_pins_default {
+				pins_clk_rst {
+					pinmux = <MT8365_PIN_65_CMMCLK0__FUNC_CMMCLK0>,
+						 <MT8365_PIN_117_DMIC0_CLK__FUNC_GPIO117>;
+				};
+			};
+		};
+	};
+
+        fragment@1 {
+                target = <&mt6357_pmic>;
+                __overlay__ {
+                        regulators {
+                                mt6357_vcama_reg: ldo-vcama {
+                                        regulator-min-microvolt = <2800000>;
+                                        regulator-max-microvolt = <2800000>;
+                                };
+
+
+                                mt6357_vcamio_reg: ldo-vcamio18 {
+                                        regulator-min-microvolt = <1800000>;
+                                        regulator-max-microvolt = <1800000>;
+                                };
+
+
+                                mt6357_vldo28_reg: ldo-vldo28 {
+                                        regulator-min-microvolt = <2800000>;
+                                        regulator-max-microvolt = <2800000>;
+                                };
+                        };
+                };
+        };
+
+
+	fragment@2 {
+		target = <&i2c3>;
+		__overlay__ {
+			clock-frequency = <400000>;
+
+			camera@3c {  /* Main camera */
+				compatible = "onnn,ap1302";
+				reg = <0x3c>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&cam0_pins_default>;
+
+				clocks = <&topckgen CLK_TOP_CAMTG_SEL>;
+				assigned-clocks = <&topckgen CLK_TOP_CAMTG_SEL>;
+				assigned-clock-parents = <&topckgen CLK_TOP_USB20_192M_D4>;
+
+				reset-gpios = <&pio 117 GPIO_ACTIVE_LOW>;
+                                standby-gpios = <&tca6416 2 GPIO_ACTIVE_HIGH>;
+
+				orientation = <0>;
+				rotation = <0>;
+
+				port {
+					isp1_out: endpoint {
+						remote-endpoint = <&seninf_in1>;
+						data-lanes = <1 2 3 4>;
+					};
+				};
+
+				sensors {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					onnn,model = "onnn,ar0330";
+
+					sensor@0 {
+						reg = <0>;
+
+                                                vdd-supply = <&reg_1p8v_ext>;
+						vddpll-supply = <&mt6357_vldo28_reg>;
+                                                vaa-supply = <&mt6357_vcama_reg>;
+                                                vddio-supply = <&mt6357_vcamio_reg>;
+					};
+
+                                        sensor@1 {
+                                                reg = <1>;
+
+                                                vdd-supply = <&reg_1p8v_ext>;
+						vddpll-supply = <&mt6357_vldo28_reg>;
+                                                vaa-supply = <&mt6357_vcama_reg>;
+                                                vddio-supply = <&mt6357_vcamio_reg>;
+                                        };
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&seninf>;
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				port@0 {
+					seninf_in1: endpoint {
+						clock-lanes = <2>;
+						data-lanes = <1 3 0 4>;
+						remote-endpoint = <&isp1_out>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&camsv1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

@@ -1,0 +1,54 @@
+/dts-v1/;
+/plugin/;
+
+#define RPI_DSI_NODE dsi0
+#define RPI_I2C_NODE i2c1
+#define RPI_MIPI_TX_NODE mipi_tx0
+#define RPI_PANEL_POWER_SUPPLY vdddsi_ex_3v3
+#define RPI_DISABLE_TS
+
+#include "panel-raspberrypi.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/mt8365-pinfunc.h>
+
+/ {
+	fragment@3 {
+		target = <&pio>;
+		__overlay__ {
+			panel_pins: lcd-pins {
+				pin_p3v3_dsi_en {
+					pinmux = <MT8365_PIN_3_GPIO3__FUNC_GPIO3>;
+				};
+
+				pin_dsi_sel {
+					pinmux = <MT8365_PIN_2_GPIO2__FUNC_GPIO2>;
+					output-high;
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target-path = "/";
+		__overlay__ {
+			vdddsi_ex_3v3: vdddsi-ex-3v3-regulator {
+				compatible = "regulator-fixed";
+				regulator-name = "vdddsi-ex-3v3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				gpio = <&pio 3 GPIO_ACTIVE_HIGH>;
+				enable-active-high;
+				regulator-always-on;
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&i2c1>;
+		__overlay__ {
+			hdmi-bridge@3b {
+				status = "disabled";
+			};
+		};
+	};
+};

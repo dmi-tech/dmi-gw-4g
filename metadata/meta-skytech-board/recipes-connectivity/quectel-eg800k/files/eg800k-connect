@@ -1,0 +1,98 @@
+#!/bin/sh
+
+set -eu
+
+connection="eg800k"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  eg800k-connect status
+  eg800k-connect up <apn> [username] [password]
+  eg800k-connect down
+
+The EG800K must expose USB ID 2c7c:6002. The AT port is available as
+/dev/eg800k-at after udev processes the device.
+EOF
+}
+
+modem_present() {
+    for device in /sys/bus/usb/devices/*; do
+        [ -r "${device}/idVendor" ] || continue
+        [ -r "${device}/idProduct" ] || continue
+        [ "$(cat "${device}/idVendor")" = "2c7c" ] || continue
+        [ "$(cat "${device}/idProduct")" = "6002" ] || continue
+        return 0
+    done
+    return 1
+}
+
+status() {
+    if modem_present; then
+        echo "EG800K USB device: present (2c7c:6002)"
+    else
+        echo "EG800K USB device: not found (expected 2c7c:6002)"
+    fi
+
+    if [ -e /dev/eg800k-at ]; then
+        echo "AT port: $(readlink -f /dev/eg800k-at)"
+    else
+        echo "AT port: not ready"
+    fi
+
+    mmcli --list-modems || true
+    nmcli --fields DEVICE,TYPE,STATE,CONNECTION device status || true
+}
+
+up() {
+    apn="${1:-}"
+    username="${2:-}"
+    password="${3:-}"
+
+    if [ -z "${apn}" ]; then
+        echo "APN is required" >&2
+        usage >&2
+        exit 2
+    fi
+    if ! modem_present; then
+        echo "EG800K 2c7c:6002 is not connected" >&2
+        exit 1
+    fi
+
+    if nmcli --terse --fields NAME connection show | grep -Fxq "${connection}"; then
+        nmcli connection modify "${connection}" gsm.apn "${apn}"
+    else
+        nmcli connection add type gsm ifname "*" con-name "${connection}" apn "${apn}"
+    fi
+
+    if [ -n "${username}" ]; then
+        nmcli connection modify "${connection}" gsm.username "${username}"
+    fi
+    if [ -n "${password}" ]; then
+        nmcli connection modify "${connection}" gsm.password "${password}"
+    fi
+
+    nmcli connection up "${connection}"
+}
+
+case "${1:-}" in
+    status)
+        status
+        ;;
+    up)
+        shift
+        up "$@"
+        ;;
+    down)
+        nmcli connection down "${connection}"
+        ;;
+    -h|--help|help|"")
+        usage
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+

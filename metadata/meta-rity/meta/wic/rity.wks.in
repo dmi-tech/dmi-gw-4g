@@ -1,0 +1,26 @@
+# Custom 16GB layout for Genio-350 (MT8365)
+# Goal: rootfs = 8GiB, userdata ≈ 6GiB (safe for real 16GB eMMC ≈ 14.6GiB)
+# Follow MediaTek scheme; keep small parts fixed-size; align like MTK (512 KiB steps)
+
+bootloader --ptable gpt --timeout=0
+
+# ---- Firmware-related partitions (MediaTek) ----
+part --source rawcopy --sourceparams="file=fip.bin"         --part-name bootloaders    --align 512 --fixed-size 4M
+part --source rawcopy --sourceparams="file=fip.bin"         --part-name bootloaders_b  --align 512 --fixed-size 4M
+part --source empty                                         --part-name firmware       --fixed-size 32M
+part --source empty                                         --part-name firmware_b     --fixed-size 32M
+part --source empty                                         --part-name dramk          --size 512K
+part --source empty                                         --part-name misc           --fixed-size 1M
+part --source rawcopy --sourceparams="file=bootassets.vfat" --part-name bootassets     --fixed-size 32M
+
+# ---- OS-related partitions ----
+part --source rawcopy --sourceparams="file=capsule.vfat" --part-name capsule --part-type C12A7328-F81F-11D2-BA4B-00A0C93EC93B --size 100M
+# Kernel (fitImage)
+part --source rawcopy --sourceparams="file=fitImage" --part-name kernel --size 32M
+
+# ---- Root filesystem (8 GiB) ----
+# DPS root GUID cho aarch64 (systemd discovery friendly)
+part / --source rootfs --fstype=ext4 --label rootfs --part-name rootfs --part-type B921B045-1DF0-41C3-AF44-4C6F280D3FAE --active --fixed-size 8192M
+
+# ---- User data (~6 GiB, SAFE) ----
+part /data --source rawcopy --sourceparams="file=userdata_6g.ext4" --part-name userdata --part-type 0FC63DAF-8483-4772-8E79-3D69D8477DE4 --fixed-size 6144M --align 1024

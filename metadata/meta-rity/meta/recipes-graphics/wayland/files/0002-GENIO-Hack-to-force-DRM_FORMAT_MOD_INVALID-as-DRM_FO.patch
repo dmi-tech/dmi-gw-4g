@@ -1,0 +1,41 @@
+From 10bb637b7525cdce4c51b3df363879ace5e816e7 Mon Sep 17 00:00:00 2001
+From: Pablo Sun <pablo.sun@mediatek.com>
+Date: Fri, 14 Feb 2025 11:01:52 +0800
+Subject: [PATCH] GENIO: Hack to force DRM_FORMAT_MOD_INVALID as
+ DRM_FORMAT_MOD_LINEAR
+
+This hack remedies an issue that causes GStreamer 1.22.12 waylandsink
+becomes a black rectangle if DMABUF with NV12 and I240 color formats
+are passed.
+
+Commands to reproduce the issue:
+
+gst-launch-1.0 videotestsrc ! video/x-raw,format=YUY2 ! v4l2convert capture-io-mode=dmabuf ! video/x-raw,format=NV12 ! waylandsink sync=false
+gst-launch-1.0 videotestsrc ! video/x-raw,format=YUY2 ! v4l2convert capture-io-mode=dmabuf ! video/x-raw,format=I420 ! waylandsink sync=false
+
+Note that `weston-simple-dmabuf-v4l` can show NV12 correctly without
+this hack.
+
+Upstream-Status: Pending
+CR-Id: AUTO00349780
+Change-Id: I1ef42763404df61e5e58fad77a270269de2eaf3a
+---
+ libweston/linux-dmabuf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libweston/linux-dmabuf.c b/libweston/linux-dmabuf.c
+index ea781cdfe1cc..bdc34299426b 100644
+--- a/libweston/linux-dmabuf.c
++++ b/libweston/linux-dmabuf.c
+@@ -120,7 +120,7 @@ params_add(struct wl_client *client,
+ 	buffer->attributes.stride[plane_idx] = stride;
+ 
+ 	if (wl_resource_get_version(params_resource) < ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION)
+-		buffer->attributes.modifier[plane_idx] = DRM_FORMAT_MOD_INVALID;
++		buffer->attributes.modifier[plane_idx] = DRM_FORMAT_MOD_LINEAR; // HACK: was DRM_FORMAT_MOD_INVALID
+ 	else
+ 		buffer->attributes.modifier[plane_idx] = u64_from_u32s(modifier_hi, modifier_lo);
+ 
+-- 
+2.45.2
+

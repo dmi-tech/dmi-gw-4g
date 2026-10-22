@@ -1,0 +1,47 @@
+/dts-v1/;
+/plugin/;
+
+#define RPI_DSI_NODE dsi0
+#define RPI_I2C_NODE i2c3
+#define RPI_MIPI_TX_NODE mipi_tx0
+#define RPI_PANEL_POWER_SUPPLY panel_power
+#define RPI_TS_INTERRUPT 189
+
+#include "panel-raspberrypi.dtsi"
+#include <dt-bindings/pinctrl/mt8183-pinfunc.h>
+
+/ {
+	fragment@3 {
+		target = <&pio>;
+		__overlay__ {
+			panel_pins: panel_pins {
+				pins {
+					pinmux = <PINMUX_GPIO45__FUNC_GPIO45>,
+						 <PINMUX_GPIO44__FUNC_GPIO44>;
+					output-high;
+				};
+			};
+
+			ts_pins: ts_pins {
+				pins {
+					pinmux = <PINMUX_GPIO176__FUNC_GPIO176>;
+					input-enable;
+					bias-pull-up;
+				};
+			};
+		};
+	};
+
+	fragment@4 {
+		target-path = "/";
+		__overlay__ {
+			panel_power: fixedregulator {
+				compatible = "regulator-fixed";
+				regulator-name = "panel-pwr-1P8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+		};
+	};
+};

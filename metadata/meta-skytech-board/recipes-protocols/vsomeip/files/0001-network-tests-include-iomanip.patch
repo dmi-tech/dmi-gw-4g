@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000001 Mon Sep 17 00:00:00 2001
+From: VietN DMI <you@example.com>
+Date: Thu, 13 Nov 2025 00:00:00 +0700
+Subject: [PATCH] test: include <iomanip> for std::setw/setfill
+
+Upstream-Status: Pending
+
+Fix build error:
+  'setw' is not a member of 'std'
+  'setfill' is not a member of 'std'
+
+---
+ test/network_tests/security_tests/security_test_client.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/network_tests/security_tests/security_test_client.cpp b/test/network_tests/security_tests/security_test_client.cpp
+index 0000000..1111111 100644
+--- a/test/network_tests/security_tests/security_test_client.cpp
++++ b/test/network_tests/security_tests/security_test_client.cpp
+@@ -21,6 +21,7 @@
+ #include <iostream>
+ #include <sstream>
+ #include <vector>
++#include <iomanip>
+
+ // phần còn lại giữ nguyên
+--
+2.34.1

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2020 Baylibre, SAS
+ * Author: Phi-Bang Nguyen <pnguyen@baylibre.com>
+ */
+
+#include "camera-ap1302-ar0330-dual-ar0144-dual.dtsi"
+
+/ {
+	fragment@7 {
+		target = <&i2c2>;
+		__overlay__ {
+			camera@3c {
+				sensors {
+					sensor@1 {
+						status = "disabled";
+					};
+				};
+			};
+		};
+	};
+
+	fragment@8 {
+		target = <&i2c4>;
+		__overlay__ {
+			camera@3c {
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@9 {
+		target = <&camsv2>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};

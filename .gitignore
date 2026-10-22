@@ -1,0 +1,33 @@
+# Yocto build outputs and caches.
+/cache/
+/downloads/
+/logs/
+/sstate-cache/
+/tmp/
+/bitbake-cookerdaemon.log*
+/bitbake.lock
+/bitbake.sock
+/hashserve.sock
+/.image-export-*/
+
+# Keep only the active build configuration under build/.
+/build/*
+!/build/conf/
+/build/conf/*
+!/build/conf/bblayers.conf
+!/build/conf/local.conf
+!/build/conf/templateconf.cfg
+
+# Keep the active alternate configuration and shared worker settings.
+/conf/*
+!/conf/bblayers.conf
+!/conf/local.conf
+!/conf/templateconf.cfg
+!/conf/worker-05-parallel.inc
+
+# Interpreter and editor generated files.
+__pycache__/
+*.py[cod]
+*.swp
+*~
+/.vscode/

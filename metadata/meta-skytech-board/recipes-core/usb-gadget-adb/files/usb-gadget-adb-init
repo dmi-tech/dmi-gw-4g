@@ -1,0 +1,41 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          usb-gadget-adb
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: USB Gadget ADB (configfs)
+### END INIT INFO
+
+DAEMON=/usr/sbin/usb-gadget-adb.sh
+LOCK=/var/lock/usb-gadget-adb
+
+case "$1" in
+  start)
+    [ -x "$DAEMON" ] || exit 0
+    [ -f "$LOCK" ] && exit 0
+    echo "Starting usb-gadget-adb..."
+    "$DAEMON" start || true
+    touch "$LOCK"
+    ;;
+  stop)
+    [ -x "$DAEMON" ] || exit 0
+    echo "Stopping usb-gadget-adb..."
+    "$DAEMON" stop || true
+    rm -f "$LOCK"
+    ;;
+  restart)
+    "$0" stop
+    sleep 1
+    "$0" start
+    ;;
+  status)
+    if [ -f "$LOCK" ]; then echo "running"; else echo "stopped"; fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+exit 0

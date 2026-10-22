@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -eu
+
+drm_class=${WESTON_DRM_CLASS:-/sys/class/drm}
+wait_interval=${WESTON_WAIT_INTERVAL:-5}
+
+if [ "$#" -eq 0 ]; then
+    echo "weston-wait-for-hdmi: no Weston command specified" >&2
+    exit 64
+fi
+
+echo "weston-wait-for-hdmi: waiting for a connected HDMI connector"
+
+while :; do
+    for status_file in "${drm_class}"/card*-HDMI-*/status; do
+        [ -r "${status_file}" ] || continue
+
+        if [ "$(cat "${status_file}")" = connected ]; then
+            echo "weston-wait-for-hdmi: connected HDMI found at ${status_file%/status}"
+            exec "$@"
+        fi
+    done
+
+    sleep "${wait_interval}"
+done

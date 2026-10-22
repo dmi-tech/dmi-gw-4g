@@ -1,0 +1,12 @@
+[Unit]
+Description=WWAN 5G card service
+After=usbhub.service
+
+[Service]
+ExecStart=/lib/systemd/wwan-5g.sh --start
+RemainAfterExit=true
+ExecStop=/lib/systemd/wwan-5g.sh --stop
+Restart=/lib/systemd/wwan-5g.sh --restart
+
+[Install]
+WantedBy=multi-user.target

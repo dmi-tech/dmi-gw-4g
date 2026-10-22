@@ -1,0 +1,42 @@
+/dts-v1/;
+
+/ {
+        description = "Flattened Device Tree blob";
+        #address-cells = <1>;
+
+        images {
+                default = "fdt-mediatek_FDTBIN";
+                fdt-mediatek_FDTBIN {
+                        description = "Flattened Device Tree blob";
+                        data = /incbin/("FDTBIN");
+                        type = "flat_dt";
+                        arch = "arm64";
+                        compression = "none";
+                        hash-1 {
+                                algo = "sha256";
+                        };
+                        signature-1 {
+                                algo = "sha256,rsa3072";
+                                key-name-hint = "u-boot-img";
+                        };
+                };
+        };
+
+        configurations {
+                default = "conf-mediatek_FDTBIN";
+                conf-mediatek_FDTBIN {
+                        description = "FDT blob";
+                        fdt = "fdt-mediatek_FDTBIN";
+
+                        hash-1 {
+                                algo = "sha256";
+                        };
+                        signature-1 {
+                                algo = "sha256,rsa3072";
+                                key-name-hint = "u-boot";
+                                padding = "pkcs-1.5";
+                                sign-images = "fdt";
+                        };
+                };
+        };
+};

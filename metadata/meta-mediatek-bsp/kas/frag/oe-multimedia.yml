@@ -1,0 +1,8 @@
+header:
+  version: 11
+
+# Support the meta-multimedia dynamic layer
+repos:
+  meta-openembedded:
+    layers:
+      meta-multimedia:

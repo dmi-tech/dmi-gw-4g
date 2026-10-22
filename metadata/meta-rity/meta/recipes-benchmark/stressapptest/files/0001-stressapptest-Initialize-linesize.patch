@@ -1,0 +1,31 @@
+From 04dc372d1cbeafe2cd3f464cf264398760e329cd Mon Sep 17 00:00:00 2001
+From: JoyingKyc <joying.kuo@mediatek.com>
+Date: Thu, 29 Feb 2024 16:36:09 +0800
+Subject: [PATCH] stressapptest: Initialize linesize
+
+The system nodes like
+"/sys/devices/system/cpu/cpu0/cache/index1/coherency_line_size"
+for storing linesize are not universally implemented, therefore
+initiate it to zero in case of the wrong value is read.
+
+Signed-off-by: JoyingKyc <joying.kuo@mediatek.com>
+---
+ src/sat.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sat.cc b/src/sat.cc
+index 176ed84..419bd5d 100644
+--- a/src/sat.cc
++++ b/src/sat.cc
+@@ -1500,7 +1500,7 @@ int Sat::ReadInt(const char *filename, int *value) {
+ // Return the worst case (largest) cache line size of the various levels of
+ // cache actually prsent in the machine.
+ int Sat::CacheLineSize() {
+-  int max_linesize, linesize;
++  int max_linesize, linesize = 0;
+ #ifdef _SC_LEVEL1_DCACHE_LINESIZE
+   max_linesize = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+ #else
+-- 
+2.18.0
+

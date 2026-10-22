@@ -1,0 +1,37 @@
+From f7aa81bd39e9d18b9a4524632e3fb45928912d13 Mon Sep 17 00:00:00 2001
+From: Fabien Parent <fparent@baylibre.com>
+Date: Wed, 15 Sep 2021 16:49:22 +0000
+Subject: [PATCH] Remove unneeded dependency to enum34
+
+The module enum34 is not used by the ToT of pysimg.
+Remove the dependency.
+
+Signed-off-by: Fabien Parent <fparent@baylibre.com>
+---
+ requirements.txt | 1 -
+ setup.py         | 1 -
+ 2 files changed, 2 deletions(-)
+ delete mode 100644 requirements.txt
+
+diff --git a/requirements.txt b/requirements.txt
+deleted file mode 100644
+index 64e38d0..0000000
+--- a/requirements.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-enum34>=1.0
+diff --git a/setup.py b/setup.py
+index bb79e5f..463490b 100644
+--- a/setup.py
++++ b/setup.py
+@@ -36,7 +36,6 @@ setup(name="pysimg",
+       long_description=open('README.md').read(),
+       author="Daniel Lenski",
+       author_email="dlenski@gmail.com",
+-      install_requires=[ 'enum34>=1.0' ],
+       license='GPL v3 or later',
+       url="https://github.com/dlenski/PySIMG",
+       packages=["pysimg"],
+-- 
+2.17.1
+

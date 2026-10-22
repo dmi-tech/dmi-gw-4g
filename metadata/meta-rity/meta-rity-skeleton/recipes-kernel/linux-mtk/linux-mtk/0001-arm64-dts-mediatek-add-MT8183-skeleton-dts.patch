@@ -1,0 +1,248 @@
+From 7c105499f5569ebcef5e053415d21090cc665937 Mon Sep 17 00:00:00 2001
+From: Fabien Parent <fparent@baylibre.com>
+Date: Sat, 27 Feb 2021 19:17:57 +0100
+Subject: [PATCH] arm64: dts: mediatek: add MT8183 skeleton dts
+
+Signed-off-by: Fabien Parent <fparent@baylibre.com>
+---
+ arch/arm64/boot/dts/mediatek/Makefile         |   1 +
+ .../boot/dts/mediatek/mt8183-skeleton.dts     | 217 ++++++++++++++++++
+ 2 files changed, 218 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/mediatek/mt8183-skeleton.dts
+
+diff --git a/arch/arm64/boot/dts/mediatek/Makefile b/arch/arm64/boot/dts/mediatek/Makefile
+index 75191b99e273..5708f4a257ff 100644
+--- a/arch/arm64/boot/dts/mediatek/Makefile
++++ b/arch/arm64/boot/dts/mediatek/Makefile
+@@ -17,4 +17,5 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += mt8173-evb.dtb
+ dtb-$(CONFIG_ARCH_MEDIATEK) += mt8183-evb.dtb
+ dtb-$(CONFIG_ARCH_MEDIATEK) += mt8183-kukui-krane-sku176.dtb
+ dtb-$(CONFIG_ARCH_MEDIATEK) += mt8183-pumpkin.dtb
++dtb-$(CONFIG_ARCH_MEDIATEK) += mt8183-skeleton.dtb
+ dtb-$(CONFIG_ARCH_MEDIATEK) += mt8516-pumpkin.dtb
+diff --git a/arch/arm64/boot/dts/mediatek/mt8183-skeleton.dts b/arch/arm64/boot/dts/mediatek/mt8183-skeleton.dts
+new file mode 100644
+index 000000000000..0752b271571a
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt8183-skeleton.dts
+@@ -0,0 +1,217 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (c) 2021 BayLibre, SAS.
++ * Author: Fabien Parent <fparent@baylibre.com>
++ */
++
++/dts-v1/;
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++#include "mt8183.dtsi"
++#include "mt6358.dtsi"
++
++/ {
++	model = "MT8183 Skeleton";
++	compatible = "mediatek,mt8183-skeleton", "mediatek,mt8183";
++
++	aliases {
++		serial0 = &uart0;
++	};
++
++	memory@40000000 {
++		device_type = "memory";
++		reg = <0 0x40000000 0 0x80000000>;
++	};
++
++	chosen {
++		stdout-path = "serial0:921600n8";
++	};
++
++	firmware {
++		optee {
++			compatible = "linaro,optee-tz";
++			method = "smc";
++		};
++	};
++
++	reserved-memory {
++		#address-cells = <2>;
++		#size-cells = <2>;
++		ranges;
++
++		scp_mem_reserved: scp_mem_region {
++			compatible = "shared-dma-pool";
++			reg = <0 0x50000000 0 0x2900000>;
++			no-map;
++		};
++	};
++};
++
++&pio {
++	mmc0_pins_default: mmc0default {
++		pins_cmd_dat {
++			pinmux = <PINMUX_GPIO123__FUNC_MSDC0_DAT0>,
++				 <PINMUX_GPIO128__FUNC_MSDC0_DAT1>,
++				 <PINMUX_GPIO125__FUNC_MSDC0_DAT2>,
++				 <PINMUX_GPIO132__FUNC_MSDC0_DAT3>,
++				 <PINMUX_GPIO126__FUNC_MSDC0_DAT4>,
++				 <PINMUX_GPIO129__FUNC_MSDC0_DAT5>,
++				 <PINMUX_GPIO127__FUNC_MSDC0_DAT6>,
++				 <PINMUX_GPIO130__FUNC_MSDC0_DAT7>,
++				 <PINMUX_GPIO122__FUNC_MSDC0_CMD>;
++			input-enable;
++			bias-pull-up;
++		};
++
++		pins_clk {
++			pinmux = <PINMUX_GPIO124__FUNC_MSDC0_CLK>;
++			bias-pull-down;
++		};
++
++		pins_rst {
++			pinmux = <PINMUX_GPIO133__FUNC_MSDC0_RSTB>;
++			bias-pull-up;
++		};
++	};
++
++	mmc0_pins_uhs: mmc0@0{
++		pins_cmd_dat {
++			pinmux = <PINMUX_GPIO123__FUNC_MSDC0_DAT0>,
++				 <PINMUX_GPIO128__FUNC_MSDC0_DAT1>,
++				 <PINMUX_GPIO125__FUNC_MSDC0_DAT2>,
++				 <PINMUX_GPIO132__FUNC_MSDC0_DAT3>,
++				 <PINMUX_GPIO126__FUNC_MSDC0_DAT4>,
++				 <PINMUX_GPIO129__FUNC_MSDC0_DAT5>,
++				 <PINMUX_GPIO127__FUNC_MSDC0_DAT6>,
++				 <PINMUX_GPIO130__FUNC_MSDC0_DAT7>,
++				 <PINMUX_GPIO122__FUNC_MSDC0_CMD>;
++			input-enable;
++			drive-strength = <MTK_DRIVE_10mA>;
++			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
++		};
++
++		pins_clk {
++			pinmux = <PINMUX_GPIO124__FUNC_MSDC0_CLK>;
++			drive-strength = <MTK_DRIVE_10mA>;
++			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
++		};
++
++		pins_ds {
++			pinmux = <PINMUX_GPIO131__FUNC_MSDC0_DSL>;
++			drive-strength = <MTK_DRIVE_10mA>;
++			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
++		};
++
++		pins_rst {
++			pinmux = <PINMUX_GPIO133__FUNC_MSDC0_RSTB>;
++			drive-strength = <MTK_DRIVE_10mA>;
++			bias-pull-up;
++		};
++	};
++};
++
++&cci {
++	proc-supply = <&mt6358_vproc12_reg>;
++};
++
++&cpu0 {
++	proc-supply = <&mt6358_vproc12_reg>;
++};
++
++&cpu1 {
++	proc-supply = <&mt6358_vproc12_reg>;
++};
++
++&cpu2 {
++	proc-supply = <&mt6358_vproc12_reg>;
++};
++
++&cpu3 {
++	proc-supply = <&mt6358_vproc12_reg>;
++};
++
++&cpu4 {
++	proc-supply = <&mt6358_vproc11_reg>;
++};
++
++&cpu5 {
++	proc-supply = <&mt6358_vproc11_reg>;
++};
++
++&cpu6 {
++	proc-supply = <&mt6358_vproc11_reg>;
++};
++
++&cpu7 {
++	proc-supply = <&mt6358_vproc11_reg>;
++};
++
++&svs_cpu_little {
++	vcpu-little-supply = <&mt6358_vproc12_reg>;
++};
++
++&svs_cpu_big {
++	vcpu-big-supply = <&mt6358_vproc11_reg>;
++};
++
++&svs_cci {
++	vcci-supply = <&mt6358_vproc12_reg>;
++};
++
++&svs_gpu {
++	vgpu-spply = <&mt6358_vgpu_reg>;
++};
++
++&scpsys {
++	mfg-supply = <&mt6358_vgpu_reg>;
++};
++
++&scp {
++	status = "okay";
++};
++
++&uart0 {
++	status = "okay";
++};
++
++&gpu {
++	supply-names = "mali","shadercores";
++	mali-supply = <&mt6358_vgpu_reg>;
++	shadercores-supply = <&mt6358_vsram_gpu_reg>;
++	operating-points-v2 = <&gpu_opp_table>;
++
++	power_model@0 {
++		compatible = "arm,mali-simple-power-model";
++		static-coefficient = <2427750>;
++		dynamic-coefficient = <4687>;
++		ts = <20000 2000 (-20) 2>;
++		thermal-zone = "cpu_thermal";
++	};
++
++	power_model@1 {
++		compatible = "arm,mali-g72-power-model";
++		scale = <15000>;
++	};
++};
++
++&mmc0 {
++	status = "okay";
++	pinctrl-names = "default", "state_uhs";
++	pinctrl-0 = <&mmc0_pins_default>;
++	pinctrl-1 = <&mmc0_pins_uhs>;
++	bus-width = <8>;
++	max-frequency = <200000000>;
++	cap-mmc-highspeed;
++	mmc-hs200-1_8v;
++	mmc-hs400-1_8v;
++	cap-mmc-hw-reset;
++	no-sdio;
++	no-sd;
++	hs400-ds-delay = <0x12814>;
++	vmmc-supply = <&mt6358_vemc_reg>;
++	vqmmc-supply = <&mt6358_vio18_reg>;
++	assigned-clocks = <&topckgen CLK_TOP_MUX_MSDC50_0>;
++	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_CK>;
++	non-removable;
++};
+-- 
+2.30.1
+

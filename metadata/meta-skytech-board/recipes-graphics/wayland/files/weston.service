@@ -1,0 +1,21 @@
+[Unit]
+Description=Weston Wayland Compositor (DRM on HDMI)
+StartLimitIntervalSec=60
+StartLimitBurst=3
+After=user-runtime-dir@0.service
+Wants=user-runtime-dir@0.service
+
+[Service]
+Type=simple
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=WAYLAND_DISPLAY=wayland-1
+ExecStartPre=/bin/mkdir -p /run/user/0
+ExecStartPre=/bin/chmod 700 /run/user/0
+ExecStart=/usr/bin/weston-wait-for-hdmi /usr/bin/weston --socket=wayland-1
+# Always return to the cheap HDMI wait state, including when Weston exits
+# cleanly after a display disconnect. Start limits still bound real crashes.
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

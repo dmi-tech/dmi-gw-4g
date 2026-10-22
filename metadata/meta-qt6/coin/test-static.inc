@@ -1,0 +1,5 @@
+PACKAGECONFIG:append:pn-qtbase = " static"
+QT_PTEST_ENABLED = "0"
+PACKAGECONFIG:remove:pn-qtapplicationmanager = "multi-process bubblewrap"
+RDEPENDS:${PN}:remove:pn-packagegroup-qt6-modules = "packagegroup-qt6-examples"
+DISTRO_FEATURES:remove = "webengine"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Register Neoway N706B USB serial interfaces
+After=systemd-udev-trigger.service
+Before=ModemManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/n706b-usb-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

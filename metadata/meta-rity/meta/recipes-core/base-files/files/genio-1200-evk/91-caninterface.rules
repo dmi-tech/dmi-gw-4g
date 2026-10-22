@@ -1,0 +1,1 @@
+KERNELS=="spi0.0", SUBSYSTEMS=="spi", DRIVERS=="mcp251xfd", RUN+="/sbin/ip link set can0 up type can bitrate 500000 dbitrate 4000000 fd on"

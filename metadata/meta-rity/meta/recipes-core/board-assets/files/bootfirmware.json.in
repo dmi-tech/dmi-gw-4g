@@ -1,0 +1,34 @@
+{
+  "description": "Rity Boot Firmware Image",
+  "name": "rity-bootfirmware-image",
+  "machine": null,
+  "rity-tools": {
+    "min-version": "1.5"
+  },
+  "partitions": {
+    "mmc0": null,
+    "mmc0boot0": "bl2.img",
+    "mmc0boot1": "u-boot-env.bin",
+    "bootloaders": "fip.bin",
+    "bootloaders_b": "fip.bin",
+    "kernel": null,
+    "rootfs": null,
+    "modules": null,
+    "firmware": "firmware.vfat",
+    "firmware_b": "firmware.vfat",
+    "dramk": null,
+    "misc": null,
+    "capsule": "capsule.vfat",
+    "bootassets": "bootassets.vfat"
+  },
+  "groups": {
+    "all": {
+      "erase": ["mmc0", "mmc0boot0", "mmc0boot1"],
+      "flash": ["mmc0", "mmc0boot0", "mmc0boot1"]
+    },
+
+    "erase-mmc": {
+      "erase": ["mmc0", "mmc0boot0", "mmc0boot1"]
+    }
+  }
+}

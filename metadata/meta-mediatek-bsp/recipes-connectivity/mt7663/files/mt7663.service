@@ -1,0 +1,10 @@
+[Unit]
+Description=Load MT7663 modules
+
+[Service]
+ExecStart=/lib/systemd/mt7663.sh
+User=root
+
+[Install]
+WantedBy=bluetooth.service
+WantedBy=systemd-networkd.service

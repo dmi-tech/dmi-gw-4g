@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&dsi0>;
+		__overlay__ {
+			panel@0 {
+				status = "okay";
+			};
+			port {
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&touch>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

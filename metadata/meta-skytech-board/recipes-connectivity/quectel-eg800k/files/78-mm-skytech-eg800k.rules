@@ -1,0 +1,15 @@
+# Quectel EG800K: USB 2c7c:6002, interfaces 2/3/4 are DIAG/AT/Modem.
+ACTION!="add|change|move|bind", GOTO="skytech_eg800k_end"
+SUBSYSTEMS!="usb", GOTO="skytech_eg800k_end"
+ATTRS{idVendor}!="2c7c", GOTO="skytech_eg800k_end"
+ATTRS{idProduct}!="6002", GOTO="skytech_eg800k_end"
+
+SUBSYSTEMS=="usb", ATTRS{bInterfaceNumber}=="?*", ENV{.SKYTECH_USBIFNUM}="$attr{bInterfaceNumber}"
+
+ENV{ID_MM_DEVICE_PROCESS}="1"
+ENV{.SKYTECH_USBIFNUM}=="02", SUBSYSTEM=="tty", ENV{ID_MM_PORT_TYPE_QCDM}="1", SYMLINK+="eg800k-diag"
+ENV{.SKYTECH_USBIFNUM}=="03", SUBSYSTEM=="tty", ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1", SYMLINK+="eg800k-at"
+ENV{.SKYTECH_USBIFNUM}=="04", SUBSYSTEM=="tty", ENV{ID_MM_PORT_TYPE_AT_SECONDARY}="1", SYMLINK+="eg800k-modem"
+
+LABEL="skytech_eg800k_end"
+
